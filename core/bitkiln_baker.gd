@@ -26,6 +26,11 @@ class Result:
 	## [code]empty[/code] (indices of frames with no visible pixels), [code]animations[/code],
 	## [code]names[/code], [code]fps[/code], [code]loop[/code] and [code]skip_empty[/code].
 	var sprite_frames: Array[Dictionary] = []
+	## [TileSet] outputs, made by the editor once their PNGs are imported: [code]path[/code],
+	## [code]texture[/code], [code]frames[/code], [code]frame_size[/code], [code]empty[/code],
+	## [code]masks[/code] (each cell's neighbour bits from [BitKilnAutotile], -1 for none, or
+	## empty without one), [code]terrain_name[/code] and [code]terrain_color[/code].
+	var tile_sets: Array[Dictionary] = []
 
 	## True when there are no [member errors].
 	var ok: bool:
@@ -136,7 +141,8 @@ static func bake(recipe: BitKilnRecipe) -> Result:
 				result.warnings.append(warning)
 		var written_layers := {} # Kind -> path, for canvas textures
 		for output in recipe.outputs:
-			if output == null or output.kind in [BitKilnOutput.Kind.CANVAS_TEXTURE, BitKilnOutput.Kind.SPRITE_FRAMES]:
+			if output == null or output.kind in [BitKilnOutput.Kind.CANVAS_TEXTURE, BitKilnOutput.Kind.SPRITE_FRAMES,
+					BitKilnOutput.Kind.TILE_SET]:
 				continue
 			var path := output.resolve(source_path, recipe.resource_path, context.variant)
 			var layer := BitKilnContext.NORMAL if output.kind == BitKilnOutput.Kind.NORMAL else BitKilnContext.COLOR
@@ -152,6 +158,29 @@ static func bake(recipe: BitKilnRecipe) -> Result:
 				else context.get_layer(layer).to_image()
 			if _save_png(image, path, result):
 				written_layers[output.kind] = path
+		for output in recipe.outputs:
+			if output == null or output.kind != BitKilnOutput.Kind.TILE_SET:
+				continue
+			var path := output.resolve(source_path, recipe.resource_path, context.variant)
+			var error := _check_path(path, source_path, seen)
+			if not error.is_empty():
+				result.errors.append(error)
+				continue
+			if not written_layers.has(BitKilnOutput.Kind.COLOR):
+				result.errors.append("%s needs a Color output in the same recipe." % path.get_file())
+				continue
+			seen[path] = true
+			result.files.append(path)
+			result.tile_sets.append({
+				"path": path,
+				"texture": written_layers[BitKilnOutput.Kind.COLOR],
+				"frames": context.frames,
+				"frame_size": context.frame_size,
+				"empty": empty_frames(context),
+				"masks": context.meta.get("autotile_masks", PackedInt32Array()),
+				"terrain_name": output.terrain_name if not output.terrain_name.is_empty() else path.get_file().get_basename(),
+				"terrain_color": output.terrain_color,
+			})
 		for output in recipe.outputs:
 			if output == null or output.kind != BitKilnOutput.Kind.SPRITE_FRAMES:
 				continue

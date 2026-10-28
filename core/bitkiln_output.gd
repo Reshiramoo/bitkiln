@@ -3,8 +3,8 @@
 class_name BitKilnOutput
 extends Resource
 ## A file a [BitKilnRecipe] writes when baked: a layer saved as a PNG, the result's
-## palette, a [CanvasTexture] that pairs the recipe's color and normal PNGs, or the
-## [SpriteFrames] of an animated sheet.
+## palette, a [CanvasTexture] that pairs the recipe's color and normal PNGs, the
+## [SpriteFrames] of an animated sheet, or a [TileSet].
 
 enum Kind {
 	COLOR, ## The color layer, as a PNG.
@@ -12,6 +12,7 @@ enum Kind {
 	CANVAS_TEXTURE, ## A [CanvasTexture] [code].tres[/code] using the recipe's Color and Normal outputs, ready for a Sprite2D with 2D lights.
 	PALETTE, ## Every color of the result, darkest to brightest, as a one-row PNG: usable as a palette by [BitKilnPaletteSwap], [BitKilnQuantize] or Pocket's shaders.
 	SPRITE_FRAMES, ## A [SpriteFrames] [code].tres[/code] for an AnimatedSprite2D, cutting the recipe's Color output into its frames.
+	TILE_SET, ## A [TileSet] [code].tres[/code] with the recipe's Color output as an atlas, one tile per non-empty frame; after a [BitKilnAutotile], with a terrain set up for painting.
 }
 enum Animations {
 	ONE, ## Every frame in one animation, row by row.
@@ -25,6 +26,7 @@ const DEFAULT_PATHS := {
 	Kind.CANVAS_TEXTURE: "{dir}/{name}_lit{variant}.tres",
 	Kind.PALETTE: "{dir}/{name}_palette{variant}.png",
 	Kind.SPRITE_FRAMES: "{dir}/{name}_frames{variant}.tres",
+	Kind.TILE_SET: "{dir}/{name}_tiles{variant}.tres",
 }
 
 ## What to write. Changing it also changes [member path] while it's still a default one.
@@ -53,11 +55,18 @@ const DEFAULT_PATHS := {
 @export var loop := true
 ## Leave out frames with no visible pixels (the unused cells at the end of a sheet).
 @export var skip_empty := true
+@export_group("Tile Set")
+## Name of the terrain, after a [BitKilnAutotile]. Empty = the file's name.
+@export var terrain_name := ""
+## Color the terrain is shown with in the TileMap editor.
+@export var terrain_color := Color(0.4, 0.75, 0.35)
 @export_group("")
 
 
 func _validate_property(property: Dictionary) -> void:
 	if property.name in ["animations", "animation_names", "fps", "loop", "skip_empty"] and kind != Kind.SPRITE_FRAMES:
+		property.usage = PROPERTY_USAGE_STORAGE
+	if property.name in ["terrain_name", "terrain_color"] and kind != Kind.TILE_SET:
 		property.usage = PROPERTY_USAGE_STORAGE
 
 

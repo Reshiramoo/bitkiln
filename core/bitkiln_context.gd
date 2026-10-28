@@ -33,6 +33,9 @@ var source_frame_size := Vector2i.ONE
 var source_offset := Vector2.ZERO
 ## Current pixels per source pixel. Scaling multiplies it.
 var source_scale := Vector2.ONE
+## Extra data ops pass to outputs, e.g. [code]"autotile_masks"[/code] from
+## [BitKilnAutotile] for TileSet outputs. Copied with the context.
+var meta := {}
 
 ## The color layer.
 var color: BitKilnBuffer:
@@ -92,6 +95,7 @@ func copy() -> BitKilnContext:
 	context.source_frame_size = source_frame_size
 	context.source_offset = source_offset
 	context.source_scale = source_scale
+	context.meta = meta.duplicate(true)
 	return context
 
 

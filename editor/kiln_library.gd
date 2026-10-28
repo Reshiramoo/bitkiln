@@ -87,6 +87,10 @@ func bake(recipe: BitKilnRecipe) -> BitKilnBaker.Result:
 		var error := _save_sprite_frames(spec)
 		if not error.is_empty():
 			result.errors.append(error)
+	for spec in result.tile_sets:
+		var error := _save_tile_set(spec)
+		if not error.is_empty():
+			result.errors.append(error)
 	var path := recipe.resource_path
 	if result.ok:
 		_errors.erase(path)
@@ -257,6 +261,62 @@ func _save_sprite_frames(spec: Dictionary) -> String:
 			atlas.region = Rect2(Vector2(Vector2i(index % grid.x, index / grid.x) * size), Vector2(size))
 			frames.add_frame(animation, atlas)
 	var error := ResourceSaver.save(frames, path)
+	if error != OK:
+		return "Couldn't save %s: %s." % [path, error_string(error)]
+	EditorInterface.get_resource_filesystem().update_file(path)
+	return ""
+
+
+const _PEERING := {
+	1: TileSet.CELL_NEIGHBOR_TOP_SIDE, 2: TileSet.CELL_NEIGHBOR_TOP_RIGHT_CORNER,
+	4: TileSet.CELL_NEIGHBOR_RIGHT_SIDE, 8: TileSet.CELL_NEIGHBOR_BOTTOM_RIGHT_CORNER,
+	16: TileSet.CELL_NEIGHBOR_BOTTOM_SIDE, 32: TileSet.CELL_NEIGHBOR_BOTTOM_LEFT_CORNER,
+	64: TileSet.CELL_NEIGHBOR_LEFT_SIDE, 128: TileSet.CELL_NEIGHBOR_TOP_LEFT_CORNER,
+}
+
+
+func _save_tile_set(spec: Dictionary) -> String:
+	var path: String = spec.path
+	var texture := ResourceLoader.load(spec.texture) as Texture2D
+	if texture == null:
+		return "%s: the color PNG isn't imported yet; bake again." % path.get_file()
+	var size: Vector2i = spec.frame_size
+	var grid: Vector2i = spec.frames
+	var masks: PackedInt32Array = spec.masks
+	var empty: PackedInt32Array = spec.empty
+	# Rebuilt in place (one atlas source, one terrain set), so TileMaps using it keep working.
+	var tile_set := ResourceLoader.load(path) as TileSet if ResourceLoader.exists(path) else null
+	if tile_set == null:
+		tile_set = TileSet.new()
+	tile_set.tile_size = size
+	while tile_set.get_source_count() > 0:
+		tile_set.remove_source(tile_set.get_source_id(0))
+	while tile_set.get_terrain_sets_count() > 0:
+		tile_set.remove_terrain_set(0)
+	var terrain := not masks.is_empty()
+	if terrain:
+		tile_set.add_terrain_set()
+		tile_set.set_terrain_set_mode(0, TileSet.TERRAIN_MODE_MATCH_CORNERS_AND_SIDES)
+		tile_set.add_terrain(0)
+		tile_set.set_terrain_name(0, 0, spec.terrain_name)
+		tile_set.set_terrain_color(0, 0, spec.terrain_color)
+	var source := TileSetAtlasSource.new()
+	source.texture = texture
+	source.texture_region_size = size
+	tile_set.add_source(source, 0)
+	for index in grid.x * grid.y:
+		if index in empty or (terrain and (index >= masks.size() or masks[index] < 0)):
+			continue
+		var coords := Vector2i(index % grid.x, index / grid.x)
+		source.create_tile(coords)
+		if terrain:
+			var data := source.get_tile_data(coords, 0)
+			data.terrain_set = 0
+			data.terrain = 0
+			for bit: int in _PEERING:
+				if masks[index] & bit:
+					data.set_terrain_peering_bit(_PEERING[bit], 0)
+	var error := ResourceSaver.save(tile_set, path)
 	if error != OK:
 		return "Couldn't save %s: %s." % [path, error_string(error)]
 	EditorInterface.get_resource_filesystem().update_file(path)
