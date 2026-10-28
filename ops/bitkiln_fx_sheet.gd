@@ -63,11 +63,7 @@ func _apply(context: BitKilnContext) -> void:
 				var h := heat[y * size.x + x]
 				if h < 0.0:
 					continue
-				if color_steps > 0:
-					var offset := BitKilnFilter.BAYER_4[(y % 4) * 4 + x % 4] - 0.5 if dither else 0.0
-					var band := clampi(floori(h * color_steps + offset), 0, color_steps - 1)
-					h = (band + 0.5) / color_steps
-				var c := BitKilnBuffer.from_color(gradient.sample(clampf(h, 0.0, 1.0)))
+				var c := BitKilnFilter.gradient_color(gradient, h, color_steps, dither, x, y)
 				p[row + x] = BitKilnBuffer.blend(c, p[row + x])
 	context.color.pixels = p
 

@@ -121,6 +121,18 @@ static func step_alpha(alpha: float, steps: int, dither: bool, x: int, y: int) -
 	return clampf(floorf(scaled + threshold), 0.0, steps) / steps
 
 
+## The color of [param gradient] at [param value] (0–1). With [param steps] above 0, the
+## value first snaps to the middle of one of that many bands (with [param dither], an
+## ordered pattern at pixel ([param x], [param y]) picks between neighbouring bands).
+static func gradient_color(gradient: Gradient, value: float, steps: int, dither: bool, x: int, y: int) -> int:
+	var v := clampf(value, 0.0, 1.0)
+	if steps > 0:
+		var offset := BAYER_4[(y % 4) * 4 + x % 4] - 0.5 if dither else 0.0
+		var band := clampi(floori(v * steps + offset), 0, steps - 1)
+		v = (band + 0.5) / steps
+	return BitKilnBuffer.from_color(gradient.sample(v))
+
+
 ## Changes every pixel's alpha with [method step_alpha], keeping the color.
 static func step_planes(planes: Array[PackedFloat32Array], w: int, h: int, steps: int, dither: bool) -> void:
 	if steps <= 0:
