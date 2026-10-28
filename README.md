@@ -240,7 +240,7 @@ func _apply(context: BitKilnContext) -> void:
 
 Use `context.frame_size` to keep neighbour lookups inside a frame, `context.remap_frames()` or
 `context.scale_nearest()` to change the size of every layer at once, and `context.warn()` for
-messages that show in the dock. An op that makes variants overrides `process()` instead and
+messages that show in the dock. An op that makes variants overrides `_process()` instead and
 returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPaletteSwap.md)).
 
 ## Class reference

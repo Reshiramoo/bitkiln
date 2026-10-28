@@ -25,6 +25,14 @@ var variant := ""
 var source_path := ""
 ## Messages collected while baking, shown in the BitKiln dock.
 var warnings: PackedStringArray = []
+## Size of one frame of the source image, before any op.
+var source_frame_size := Vector2i.ONE
+## Where the source frame's top-left corner is in the current frame, in current pixels.
+## Padding and trimming move it; with [member source_scale], it maps current pixels back
+## to the source (see [method to_source]), which is how masks follow the art.
+var source_offset := Vector2.ZERO
+## Current pixels per source pixel. Scaling multiplies it.
+var source_scale := Vector2.ONE
 
 ## The color layer.
 var color: BitKilnBuffer:
@@ -58,6 +66,7 @@ static func create(image: Image, frame_grid := Vector2i.ONE) -> BitKilnContext:
 		context.warn("Image size %dx%d isn't a multiple of the %dx%d frame grid; the leftover pixels are cut off."
 			% [context.width, context.height, context.frames.x, context.frames.y])
 		context.remap_frames(context.frame_size, Vector2i.ZERO)
+	context.source_frame_size = context.frame_size
 	return context
 
 
@@ -80,6 +89,9 @@ func copy() -> BitKilnContext:
 	context.variant = variant
 	context.source_path = source_path
 	context.warnings = warnings.duplicate()
+	context.source_frame_size = source_frame_size
+	context.source_offset = source_offset
+	context.source_scale = source_scale
 	return context
 
 
@@ -117,6 +129,21 @@ func remap_frames(new_frame_size: Vector2i, offset: Vector2i) -> void:
 							dp[dst_row + x] = sp[src_row + sx]
 		dst.pixels = dp
 		layers[layer_name] = dst
+	source_offset += Vector2(offset)
+
+
+## The source pixel (within one source frame) that the pixel at [param local] (within one
+## current frame) came from, clamped to the source frame.
+func to_source(local: Vector2i) -> Vector2i:
+	var p := ((Vector2(local) + Vector2(0.5, 0.5) - source_offset) / source_scale).floor()
+	return Vector2i(clampi(int(p.x), 0, source_frame_size.x - 1), clampi(int(p.y), 0, source_frame_size.y - 1))
+
+
+## For ops that move pixels in ways [method to_source] can't follow (rotating, repacking):
+## from now on the source frame is taken to be stretched over the whole current frame.
+func reset_source_mapping() -> void:
+	source_offset = Vector2.ZERO
+	source_scale = Vector2(frame_size) / Vector2(source_frame_size)
 
 
 ## Scales every layer up by a whole [param factor], nearest neighbour. Ops with a smarter
@@ -124,6 +151,8 @@ func remap_frames(new_frame_size: Vector2i, offset: Vector2i) -> void:
 func scale_nearest(factor: int) -> void:
 	for layer_name: StringName in layers:
 		layers[layer_name] = scale_buffer(layers[layer_name], factor)
+	source_offset *= factor
+	source_scale *= factor
 
 
 ## [param src] scaled up by a whole [param factor], nearest neighbour.

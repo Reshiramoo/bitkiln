@@ -26,7 +26,7 @@ extends BitKilnOp
 
 
 ## One context per palette (plus the original with [member keep_original]).
-func process(context: BitKilnContext) -> Array[BitKilnContext]:
+func _process(context: BitKilnContext) -> Array[BitKilnContext]:
 	var result: Array[BitKilnContext] = []
 	var valid: Array[Texture2D] = []
 	for palette in palettes:
