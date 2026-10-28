@@ -16,6 +16,7 @@ enum Dither {
 ## Every distinct color in this image is a palette color (any size; a Lospec palette
 ## imported by BitKiln works). Transparent pixels are ignored.
 @export var palette: Texture2D
+## Ordered dithering pattern, for gradients that would otherwise band.
 @export var dither := Dither.NONE
 ## How far dithering may push a color before snapping it.
 @export_range(0.0, 1.0, 0.01) var dither_strength := 0.5

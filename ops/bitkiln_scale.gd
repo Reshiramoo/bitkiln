@@ -20,6 +20,7 @@ enum Algorithm {
 	MMPX_4X, ## 4×: MMPX twice.
 }
 
+## The scaler to use.
 @export var algorithm := Algorithm.SCALE2X
 ## Factor for Nearest; the others have their own.
 @export_range(1, 16, 1) var factor := 2
@@ -50,6 +51,7 @@ func _apply(context: BitKilnContext) -> void:
 			context.color = mmpx(mmpx(color, frame), frame * 2)
 
 
+## [param src] scaled 2× with Scale2x (EPX), each [param frame]-sized cell on its own.
 static func scale2x(src: BitKilnBuffer, frame: Vector2i) -> BitKilnBuffer:
 	var w := src.width
 	var dst := BitKilnBuffer.create(w * 2, src.height * 2)
@@ -92,6 +94,7 @@ static func scale2x(src: BitKilnBuffer, frame: Vector2i) -> BitKilnBuffer:
 	return dst
 
 
+## [param src] scaled 3× with Scale3x, each [param frame]-sized cell on its own.
 static func scale3x(src: BitKilnBuffer, frame: Vector2i) -> BitKilnBuffer:
 	var w := src.width
 	var dst := BitKilnBuffer.create(w * 3, src.height * 3)

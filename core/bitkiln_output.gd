@@ -11,12 +11,14 @@ enum Kind {
 	CANVAS_TEXTURE, ## A [CanvasTexture] [code].tres[/code] using the recipe's Color and Normal outputs, ready for a Sprite2D with 2D lights.
 }
 
+## Default [member path] for each [enum Kind].
 const DEFAULT_PATHS := {
 	Kind.COLOR: "{dir}/{name}_baked{variant}.png",
 	Kind.NORMAL: "{dir}/{name}_baked{variant}_n.png",
 	Kind.CANVAS_TEXTURE: "{dir}/{name}_lit{variant}.tres",
 }
 
+## What to write. Changing it also changes [member path] while it's still a default one.
 @export var kind := Kind.COLOR:
 	set(value):
 		if path == DEFAULT_PATHS.get(kind):
@@ -30,6 +32,7 @@ const DEFAULT_PATHS := {
 @export var path := "{dir}/{name}_baked{variant}.png"
 
 
+## An output of [param output_kind], at [param output_path] or the default path for that kind.
 static func create(output_kind: Kind, output_path := "") -> BitKilnOutput:
 	var output := BitKilnOutput.new()
 	output.kind = output_kind

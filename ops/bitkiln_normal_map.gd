@@ -34,7 +34,7 @@ extends BitKilnOp
 ## Pixels with at least this alpha count as part of the sprite.
 @export_range(0.01, 1.0, 0.01) var alpha_threshold := 0.5
 
-const _MAX_TILT := deg_to_rad(70.0)
+const _MAX_TILT := deg_to_rad(70.0) # steepest snapped normal
 
 
 func _apply(context: BitKilnContext) -> void:

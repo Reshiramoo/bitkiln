@@ -8,11 +8,16 @@ extends RefCounted
 ## pixels are always [code]0[/code], whatever their color, so equal colors compare equal
 ## with [code]==[/code]. Use [method pack] to make pixel values, never shifts by hand.
 
+## Width in pixels.
 var width := 0
+## Height in pixels.
 var height := 0
+## Row by row, [code]y * width + x[/code]. Packed arrays are copied on write: to change many
+## pixels, copy it to a local variable, change that, and assign it back.
 var pixels := PackedInt32Array()
 
 
+## A transparent buffer of [param w]×[param h] pixels.
 static func create(w: int, h: int) -> BitKilnBuffer:
 	var buffer := BitKilnBuffer.new()
 	buffer.width = w
@@ -39,14 +44,17 @@ static func from_image(image: Image) -> BitKilnBuffer:
 	return buffer
 
 
+## An RGBA8 [Image] of the pixels.
 func to_image() -> Image:
 	return Image.create_from_data(width, height, false, Image.FORMAT_RGBA8, pixels.to_byte_array())
 
 
+## An [ImageTexture] of the pixels.
 func to_texture() -> ImageTexture:
 	return ImageTexture.create_from_image(to_image())
 
 
+## An independent copy.
 func copy() -> BitKilnBuffer:
 	var buffer := BitKilnBuffer.new()
 	buffer.width = width
@@ -62,6 +70,7 @@ func get_px(x: int, y: int) -> int:
 	return pixels[y * width + x]
 
 
+## Sets the pixel at ([param x], [param y]); does nothing outside the buffer.
 func set_px(x: int, y: int, value: int) -> void:
 	if x >= 0 and y >= 0 and x < width and y < height:
 		pixels[y * width + x] = value
@@ -76,6 +85,7 @@ func get_colors() -> PackedInt32Array:
 	return PackedInt32Array(seen.keys())
 
 
+## A pixel value from 0–255 channels. Alpha 0 gives [code]0[/code], whatever the color.
 static func pack(r: int, g: int, b: int, a: int) -> int:
 	if a <= 0:
 		return 0
@@ -83,18 +93,22 @@ static func pack(r: int, g: int, b: int, a: int) -> int:
 	return v - 0x100000000 if v >= 0x80000000 else v
 
 
+## Red channel of [param c], 0–255.
 static func red(c: int) -> int:
 	return c & 0xFF
 
 
+## Green channel of [param c], 0–255.
 static func green(c: int) -> int:
 	return (c >> 8) & 0xFF
 
 
+## Blue channel of [param c], 0–255.
 static func blue(c: int) -> int:
 	return (c >> 16) & 0xFF
 
 
+## Alpha channel of [param c], 0–255.
 static func alpha(c: int) -> int:
 	return (c >> 24) & 0xFF
 
@@ -104,10 +118,12 @@ static func with_alpha(c: int, a: int) -> int:
 	return pack(c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF, a)
 
 
+## A pixel value as a [Color].
 static func to_color(c: int) -> Color:
 	return Color8(c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF, (c >> 24) & 0xFF)
 
 
+## A [Color] as a pixel value.
 static func from_color(color: Color) -> int:
 	return pack(color.r8, color.g8, color.b8, color.a8)
 

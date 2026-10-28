@@ -24,10 +24,15 @@ enum Coloring {
 	SELECTIVE, ## Each outline pixel is the nearest sprite color, darkened by [member darken].
 }
 
+## Around the sprite or on its edge.
 @export var mode := Mode.OUTER
+## Thickness in pixels.
 @export_range(1, 8, 1, "suffix:px") var width := 1
+## Which neighbours count at each distance; decides whether corners fill.
 @export var shape := Shape.ROUND
+## One color, or darker versions of the sprite's own colors.
 @export var coloring := Coloring.SOLID
+## For solid coloring. With alpha below 1, an inner outline blends over the sprite.
 @export var color := Color.BLACK
 ## For selective coloring: 0 = the sprite's own color, 1 = black.
 @export_range(0.0, 1.0, 0.01) var darken := 0.5

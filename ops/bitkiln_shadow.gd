@@ -6,7 +6,9 @@ extends BitKilnOp
 ## With [member length] above 1 it repeats along the offset into a long shadow.
 ## Put a [BitKilnPad] before it so the shadow has room inside the frame.
 
+## Where the shadow falls, in pixels: (1, 1) is down and to the right.
 @export var offset := Vector2i(1, 1)
+## Shadow color; its alpha is the shadow's opacity.
 @export var color := Color(0.0, 0.0, 0.0, 0.5)
 ## Steps of [member offset]: 1 = drop shadow, more = long shadow.
 @export_range(1, 64, 1, "or_greater") var length := 1

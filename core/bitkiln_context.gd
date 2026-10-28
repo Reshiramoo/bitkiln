@@ -9,7 +9,9 @@ extends RefCounted
 ## neighbouring frame. Ops that change the size (padding, trimming, scaling) change every
 ## layer at once through [method remap_frames] or [method scale_nearest].
 
+## Name of the color layer.
 const COLOR := &"color"
+## Name of the normal map layer.
 const NORMAL := &"normal"
 
 ## Layer name -> [BitKilnBuffer]. [code]color[/code] always exists; [code]normal[/code]
@@ -24,16 +26,19 @@ var source_path := ""
 ## Messages collected while baking, shown in the BitKiln dock.
 var warnings: PackedStringArray = []
 
+## The color layer.
 var color: BitKilnBuffer:
 	get:
 		return layers[COLOR]
 	set(value):
 		layers[COLOR] = value
 
+## Width of every layer, in pixels.
 var width: int:
 	get:
 		return color.width
 
+## Height of every layer, in pixels.
 var height: int:
 	get:
 		return color.height
@@ -44,6 +49,7 @@ var frame_size: Vector2i:
 		return Vector2i(color.width / frames.x, color.height / frames.y)
 
 
+## A context holding [param image] as its color layer, cut into [param frame_grid].
 static func create(image: Image, frame_grid := Vector2i.ONE) -> BitKilnContext:
 	var context := BitKilnContext.new()
 	context.color = BitKilnBuffer.from_image(image)
@@ -55,10 +61,12 @@ static func create(image: Image, frame_grid := Vector2i.ONE) -> BitKilnContext:
 	return context
 
 
+## The layer called [param layer_name], or [code]null[/code].
 func get_layer(layer_name: StringName) -> BitKilnBuffer:
 	return layers.get(layer_name)
 
 
+## Whether there's a layer called [param layer_name].
 func has_layer(layer_name: StringName) -> bool:
 	return layers.has(layer_name)
 
@@ -75,6 +83,7 @@ func copy() -> BitKilnContext:
 	return context
 
 
+## Adds a message for the BitKiln dock and the bake result (once per message).
 func warn(message: String) -> void:
 	if not message in warnings:
 		warnings.append(message)
@@ -117,6 +126,7 @@ func scale_nearest(factor: int) -> void:
 		layers[layer_name] = scale_buffer(layers[layer_name], factor)
 
 
+## [param src] scaled up by a whole [param factor], nearest neighbour.
 static func scale_buffer(src: BitKilnBuffer, factor: int) -> BitKilnBuffer:
 	var dst := BitKilnBuffer.create(src.width * factor, src.height * factor)
 	var sp := src.pixels

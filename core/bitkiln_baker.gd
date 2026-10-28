@@ -14,17 +14,21 @@ class Result:
 	var written: PackedStringArray = []
 	## Every output file, written or already up to date.
 	var files: PackedStringArray = []
+	## Why files couldn't be written. Empty when the bake worked.
 	var errors: PackedStringArray = []
+	## Problems that didn't stop the bake, from the ops and the outputs.
 	var warnings: PackedStringArray = []
 	## [CanvasTexture] outputs, made by the editor once their PNGs are imported:
 	## [code]{"path": String, "diffuse": String, "normal": String}[/code] each.
 	var canvas_textures: Array[Dictionary] = []
 
+	## True when there are no [member errors].
 	var ok: bool:
 		get:
 			return errors.is_empty()
 
 
+## Image files BitKiln reads directly.
 const IMAGE_EXTENSIONS: Array[String] = ["png", "webp", "jpg", "jpeg", "bmp", "tga", "svg"]
 ## Properties every Resource has, left out of fingerprints.
 const _IGNORED_PROPERTIES: Array[String] = ["resource_path", "resource_name", "resource_local_to_scene",

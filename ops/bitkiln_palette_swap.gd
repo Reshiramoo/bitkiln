@@ -25,6 +25,7 @@ extends BitKilnOp
 @export var keep_original := false
 
 
+## One context per palette (plus the original with [member keep_original]).
 func process(context: BitKilnContext) -> Array[BitKilnContext]:
 	var result: Array[BitKilnContext] = []
 	var valid: Array[Texture2D] = []
