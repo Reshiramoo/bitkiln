@@ -15,6 +15,12 @@ don't need the plugin, and the original art is never touched.
 - **Lighting**: normal maps for 2D lights (snapped to a few directions so light falls in clean
   bands, ready-made `CanvasTexture`s) and automatic banded, hue-shifted shading.
 - **Sprite sheets**: frame-grid guessing, repacking, and `SpriteFrames` for AnimatedSprite2D.
+- **Generators** for making art from nothing: pixel-perfect shapes, animated FX sheets
+  (sparkles, impacts, smoke, slashes, orbs, shockwaves), seeded random sprites, tileable noise
+  textures and hue-shifted palette ramps.
+- **Tiles**: a 47-tile blob set built from five hand-drawn tiles, written as a `TileSet` with the
+  terrain already set up.
+- **Bake Material**: freeze any CanvasItem shader (Pocket's `sprite_fx`, your own) into the PNG.
 - **Editor tools**: a dock with a live preview (side by side, lit by a light that follows the
   mouse), bake status for every recipe, pixel-art import checks, and a Lospec palette importer.
 
@@ -36,6 +42,13 @@ don't need the plugin, and the original art is never touched.
   - [Shading](#shading)
   - [Glow and blur](#glow-and-blur)
   - [Sprite sheets](#sprite-sheets)
+  - [Baking a material](#baking-a-material)
+- [Generators](#generators)
+  - [Shapes](#shapes)
+  - [FX sheets](#fx-sheets)
+  - [Random sprites](#random-sprites)
+  - [Noise and ramps](#noise-and-ramps)
+- [Autotiles](#autotiles)
 - [Editor tools](#editor-tools)
   - [Baking and auto bake](#baking-and-auto-bake)
   - [Import checks](#import-checks)
@@ -65,14 +78,18 @@ don't need the plugin, and the original art is never touched.
 4. Use `hero_baked.png` in your game like any other texture. When you change `hero.png`, the
    recipe bakes again by itself.
 
+To make art from nothing, right-click a folder → **New BitKiln Canvas** instead: a recipe without
+a source, starting from a blank canvas for [generators](#generators) to draw on.
+
 ## Recipes
 
 A [BitKilnRecipe](docs/classes/BitKilnRecipe.md) is a resource with:
 
 | Property | Meaning |
 |---|---|
-| `source` | The image to start from. BitKiln reads its file directly, so import settings (compression, mipmaps) don't change the pixels. |
+| `source` | The image to start from. BitKiln reads its file directly, so import settings (compression, mipmaps) don't change the pixels. Leave it empty to start from a blank canvas. |
 | `frames` | Columns and rows of frames, for sprite sheets (see [Frames](#frames)). |
+| `canvas_size` | Without a source: the size of one blank frame. |
 | `ops` | [BitKilnOp](docs/classes/BitKilnOp.md)s, applied top to bottom. Each has an **Enabled** switch, to compare with and without it. |
 | `outputs` | [BitKilnOutput](docs/classes/BitKilnOutput.md)s: the files to write when baked. |
 | `auto_bake` | Bake again whenever the source, or a palette an op uses, is reimported. |
@@ -98,10 +115,13 @@ changes every frame by the same amount so the grid stays regular.
 | **Canvas Texture** | A `CanvasTexture` `.tres` pairing the recipe's Color and Normal outputs, with the nearest filter: drop it on a Sprite2D and it reacts to 2D lights. Needs a Color and a Normal output in the same recipe. |
 | **Palette** | Every color of the result, darkest first, as a one-row PNG: a palette for Palette Swap, Quantize or Pocket's shaders. |
 | **Sprite Frames** | A `SpriteFrames` `.tres` for an AnimatedSprite2D, cut from the Color output: one animation, or one per row (named, with fps and looping), leaving out empty cells. See [Sprite sheets](#sprite-sheets). |
+| **Tile Set** | A `TileSet` `.tres` with the Color output as an atlas, one tile per non-empty frame; after an Autotile op, with a terrain set up for painting. See [Autotiles](#autotiles). |
 
 An output's `path` can use `{dir}` (the source's folder), `{name}` (the source's file name
 without extension), `{recipe}` (the recipe's file name) and `{variant}` (an underscore and the
-variant's name, or nothing). The default is `{dir}/{name}_baked{variant}.png`. A recipe never
+variant's name, or nothing). Without a source, `{dir}` and `{name}` come from the recipe itself,
+minus a `_kiln` suffix (`spark_kiln.tres` bakes `spark_baked.png`). The default is
+`{dir}/{name}_baked{variant}.png`. A recipe never
 overwrites its own source, and files whose bytes didn't change aren't rewritten (so they don't
 reimport for nothing).
 
@@ -130,6 +150,15 @@ reimport for nothing).
 | [BitKilnReduce](docs/classes/BitKilnReduce.md) | Reduces the image to at most N colors picked from itself (median cut). Add a Palette output to save them. |
 | [BitKilnAdjust](docs/classes/BitKilnAdjust.md) | Hue, saturation, brightness, contrast and tint. |
 | [BitKilnGradientMap](docs/classes/BitKilnGradientMap.md) | Recolors by brightness through a Gradient: greyscale art into any color scheme. |
+| [BitKilnMaterial](docs/classes/BitKilnMaterial.md) | Renders the image through a CanvasItem material (see [Baking a material](#baking-a-material)). |
+| **Generators** | |
+| [BitKilnShape](docs/classes/BitKilnShape.md) | Pixel-perfect ellipses, rectangles, polygons, stars and lines (see [Shapes](#shapes)). |
+| [BitKilnFxSheet](docs/classes/BitKilnFxSheet.md) | Animated effects across the frames (see [FX sheets](#fx-sheets)). |
+| [BitKilnRandomSprite](docs/classes/BitKilnRandomSprite.md) | A different random mirrored sprite per frame (see [Random sprites](#random-sprites)). |
+| [BitKilnNoise](docs/classes/BitKilnNoise.md) | Tileable noise banded through a gradient (see [Noise and ramps](#noise-and-ramps)). |
+| [BitKilnRamp](docs/classes/BitKilnRamp.md) | Hue-shifted color ramps for building palettes. |
+| **Tiles** | |
+| [BitKilnAutotile](docs/classes/BitKilnAutotile.md) | The 47-tile blob set from five tiles (see [Autotiles](#autotiles)). |
 
 Order matters: an outline after a palette swap follows the new colors; an outline before a scaler
 gets scaled with the sprite, one after it stays 1 px thin; shade before outlining, or the outline
@@ -240,6 +269,87 @@ with an ordered pattern. Follow either with a Quantize to bring the colors into 
   **Per Row**, each row of frames becomes an animation, named by **Animation Names** (or
   `row_0`, `row_1`…). Rebaking rebuilds the same file, so scenes using it keep working.
 
+### Baking a material
+
+[BitKilnMaterial](docs/classes/BitKilnMaterial.md) renders the image through a CanvasItem material
+and keeps the result: tune an effect live with a shader (Pocket's `sprite_fx`, a palette shader,
+your own), then freeze it into the PNG so the game doesn't run the shader. **Parameters** overrides
+shader parameters for this bake only (`{"flash_amount": 1.0}`), and the `sheet_frames` uniform used
+by Pocket's shaders is set to the frame grid. The material itself is never changed.
+
+It needs a renderer, so it works in the editor and in games but skips itself (with a warning) in
+`--headless` runs. Effects that change over time are caught at an arbitrary moment, and effects
+that draw outside the sprite need a Pad before it.
+
+## Generators
+
+Generators are ops that draw. On a recipe without a source ("New BitKiln Canvas" on a folder),
+they make art from a blank canvas of `canvas_size` per frame; on a recipe with a source, they draw
+over it. Like every op, they work frame by frame, so a frame grid gives animations or sets, and
+every other op (outlines, shading, palettes, scalers) can follow them.
+
+### Shapes
+
+[BitKilnShape](docs/classes/BitKilnShape.md) draws an ellipse or circle, rectangle, regular
+polygon, star or line, filled and/or outlined, placed around the frame's center with an
+**Offset**. A pixel is inside when its center is, which gives the symmetric, hand-drawn-looking
+circles of pixel art. Stack several for icons, particles and UI pieces. In the **Animation** group,
+**Grow**, **Move** and **Spin** change the shape a little on each frame, and **Frame** limits it
+to one frame.
+
+### FX sheets
+
+[BitKilnFxSheet](docs/classes/BitKilnFxSheet.md) draws an animated effect across the frames:
+**Sparkle** (looping twinkles), **Impact** (a flash, then spikes bursting out), **Smoke** (puffs
+drifting toward **Direction**), **Slash** (a sweeping crescent), **Orb** (a looping pulse with a
+halo) and **Ring** (a shockwave). Set the recipe's frames to the frame count (8×1), and add a
+Sprite Frames output to play it.
+
+Each pixel gets a heat from the hot core to the fading edge, colored by **Colors** (a Gradient) in
+**Color Steps** hard bands, so a sheet uses only a few colors. With a Constant gradient whose
+points sit at 0, 1/n, 2/n… for n steps, every band is exactly one of its colors. **Count**,
+**Scale**, **Seed** and a **Timing** curve shape the effect.
+
+### Random sprites
+
+[BitKilnRandomSprite](docs/classes/BitKilnRandomSprite.md) makes a different random sprite in every
+frame: **Creature** (round bodies with limbs, and eyes), **Ship** or **Item**. Each is a random half
+following a density map, mirrored (**Horizontal**, **Vertical** or **Both**), kept in one piece,
+shaded from top to bottom and outlined. Colors come from ramps of a **Palette**, or from a random
+hue per sprite. Frame n uses seed + n, so an 8×8 grid gives 64 sprites, and the same seed always
+gives the same set: keep the ones you like, or bake a fresh set for procedural enemies and loot.
+
+### Noise and ramps
+
+[BitKilnNoise](docs/classes/BitKilnNoise.md) fills every frame with noise from a `FastNoiseLite`
+(seamless by default, so frames tile), banded through a Gradient: grass, dirt, water and stone
+textures, clouds (with a gradient that turns transparent), terrain maps. Each frame samples its
+own part of the noise, for variations.
+
+[BitKilnRamp](docs/classes/BitKilnRamp.md) draws a color ramp per base color, one per row: darker
+shades shifting toward blue and lighter ones toward yellow, the way pixel artists build ramps by
+hand. With a Palette output, it designs palettes for Shade, Quantize and Random Sprite.
+
+## Autotiles
+
+[BitKilnAutotile](docs/classes/BitKilnAutotile.md) turns five hand-drawn tiles into the full
+47-tile "blob" set, so a terrain paints with every edge and corner right. The source is five tiles
+in a row (frames 5×1), each drawn in one style all around:
+
+| Tile | Draw it as |
+|---|---|
+| 1. **Island** | A tile with nothing around it: outer corners on all four sides. |
+| 2. **Column** | Connected above and below: its left and right edges show. |
+| 3. **Row** | Connected left and right: its top and bottom edges show. |
+| 4. **Cross** | Connected on all four sides but not diagonally: inner corners. |
+| 5. **Fill** | The middle of the terrain. |
+
+Every output tile is put together from quarters of these (so tiles need an even size) and laid
+out in **Columns** (8 by default). Add a **Tile Set** output: it writes a `TileSet` with a
+Match Corners and Sides terrain (named and colored in the output), every tile's peering bits set,
+ready for the TileMap terrain tools. Rebaking rebuilds the same file, so TileMaps using it keep
+working. Keep the frame size after Autotile (no Pad or Extrude) when using the Tile Set output.
+
 ## Editor tools
 
 The **BitKiln** dock (bottom panel):
@@ -253,12 +363,13 @@ The **BitKiln** dock (bottom panel):
 Inspecting a recipe shows it in the dock. Recipes are edited in the Inspector; the preview follows
 edits, undo and redo.
 
-FileSystem dock: right-click images → **New BitKiln Recipe** (one per image); right-click recipes
-→ **Bake**.
+FileSystem dock: right-click images → **New BitKiln Recipe** (one per image); a folder → **New
+BitKiln Canvas** (a recipe without a source, for generators); recipes → **Bake**.
 
 ### Baking and auto bake
 
-Baking writes the outputs, imports them and builds Canvas Texture outputs. Recipes with
+Baking writes the outputs, imports them and builds Canvas Texture, Sprite Frames and Tile Set
+outputs. Recipes with
 `auto_bake` bake again when their source or a texture an op uses (a palette) is reimported, which
 happens whenever you save the file in another program. Chains of recipes bake in turn; each recipe
 bakes at most once per change, so a loop can't run forever.
@@ -273,8 +384,8 @@ godot --headless --import    # on a fresh checkout: imports assets and registers
 godot --headless --script res://addons/bitkiln/tools/bake_all.gd
 ```
 
-It exits with code 1 if a recipe fails. Canvas Texture outputs need the editor to import their
-PNGs first, so this script skips them.
+It exits with code 1 if a recipe fails. Canvas Texture, Sprite Frames and Tile Set outputs need the
+editor to import their PNGs first, and Bake Material needs a renderer, so this script skips them.
 
 ### Import checks
 
@@ -337,13 +448,16 @@ returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPale
 | [BitKilnOp](docs/classes/BitKilnOp.md) | Base class of ops. |
 | [BitKilnPad](docs/classes/BitKilnPad.md), [BitKilnTrim](docs/classes/BitKilnTrim.md), [BitKilnExtrude](docs/classes/BitKilnExtrude.md), [BitKilnTransform](docs/classes/BitKilnTransform.md), [BitKilnRotate](docs/classes/BitKilnRotate.md), [BitKilnScale](docs/classes/BitKilnScale.md), [BitKilnRepack](docs/classes/BitKilnRepack.md) | Shape ops. |
 | [BitKilnOutline](docs/classes/BitKilnOutline.md), [BitKilnShadow](docs/classes/BitKilnShadow.md), [BitKilnGlow](docs/classes/BitKilnGlow.md), [BitKilnBlur](docs/classes/BitKilnBlur.md), [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md), [BitKilnShade](docs/classes/BitKilnShade.md) | Edge and light ops. |
-| [BitKilnPaletteSwap](docs/classes/BitKilnPaletteSwap.md), [BitKilnQuantize](docs/classes/BitKilnQuantize.md), [BitKilnReduce](docs/classes/BitKilnReduce.md), [BitKilnAdjust](docs/classes/BitKilnAdjust.md), [BitKilnGradientMap](docs/classes/BitKilnGradientMap.md) | Color ops. |
+| [BitKilnPaletteSwap](docs/classes/BitKilnPaletteSwap.md), [BitKilnQuantize](docs/classes/BitKilnQuantize.md), [BitKilnReduce](docs/classes/BitKilnReduce.md), [BitKilnAdjust](docs/classes/BitKilnAdjust.md), [BitKilnGradientMap](docs/classes/BitKilnGradientMap.md), [BitKilnMaterial](docs/classes/BitKilnMaterial.md) | Color ops. |
+| [BitKilnShape](docs/classes/BitKilnShape.md), [BitKilnFxSheet](docs/classes/BitKilnFxSheet.md), [BitKilnRandomSprite](docs/classes/BitKilnRandomSprite.md), [BitKilnNoise](docs/classes/BitKilnNoise.md), [BitKilnRamp](docs/classes/BitKilnRamp.md) | Generators. |
+| [BitKilnAutotile](docs/classes/BitKilnAutotile.md) | The autotile expander. |
 | [BitKilnBaker](docs/classes/BitKilnBaker.md), [BitKilnBaker.Result](docs/classes/BitKilnBaker.Result.md) | Runs recipes and writes their outputs. |
 | [BitKilnContext](docs/classes/BitKilnContext.md) | The layers and frame grid ops work on. |
 | [BitKilnBuffer](docs/classes/BitKilnBuffer.md) | RGBA8 pixels as packed ints. |
 | [BitKilnPalette](docs/classes/BitKilnPalette.md) | Reads palettes from textures; color distance. |
 | [BitKilnFilter](docs/classes/BitKilnFilter.md) | Soft operations for ops: blurs, alpha steps, distances. |
 | [BitKilnSheet](docs/classes/BitKilnSheet.md) | Sprite sheet helpers: frame grid guessing, sprite bounds. |
+| [BitKilnRaster](docs/classes/BitKilnRaster.md) | Pixel-perfect shape masks for generators. |
 
 ## Limitations
 
@@ -353,4 +467,6 @@ returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPale
 - **Whole-number scaling only**, and the scalers are 2×-based (plus Scale3x).
 - **Masks** only work on ops that keep the image's size, and after Transform, Rotate or Repack
   they're stretched over the new frame instead of following the art exactly.
+- **Bake Material** needs a renderer, and has only been tested with the Compatibility (OpenGL)
+  renderer so far.
 - **Members starting with `_`** are internal and may change between versions.

@@ -17,6 +17,7 @@ Every layer has the same size. [frames](#property-frames) splits them into equal
 | Vector2i | [frames](#property-frames) | `Vector2i(1, 1)` |
 | int | [height](#property-height) |  |
 | Dictionary | [layers](#property-layers) | `{}` |
+| Dictionary | [meta](#property-meta) | `{}` |
 | Vector2i | [source_frame_size](#property-source_frame_size) | `Vector2i(1, 1)` |
 | Vector2 | [source_offset](#property-source_offset) | `Vector2(0, 0)` |
 | String | [source_path](#property-source_path) | `""` |
@@ -79,6 +80,13 @@ Height of every layer, in pixels.
 ### Dictionary layers = `{}`
 
 Layer name -> [BitKilnBuffer](BitKilnBuffer.md). `color` always exists; `normal` once a [BitKilnNormalMap](BitKilnNormalMap.md) has run.
+
+---
+
+<a id="property-meta"></a>
+### Dictionary meta = `{}`
+
+Extra data ops pass to outputs, e.g. `"autotile_masks"` from [BitKilnAutotile](BitKilnAutotile.md) for TileSet outputs. Copied with the context.
 
 ---
 

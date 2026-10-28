@@ -10,6 +10,7 @@ Soft image operations for ops like blur and glow: images as premultiplied float 
 |---|---|
 | Array[PackedFloat32Array] | [blur](#method-blur)(planes: Array[PackedFloat32Array], w: int, h: int, frame: Vector2i, weights: PackedFloat32Array) static |
 | [BitKilnBuffer](BitKilnBuffer.md) | [from_planes](#method-from_planes)(planes: Array[PackedFloat32Array], w: int, h: int) static |
+| int | [gradient_color](#method-gradient_color)(gradient: [Gradient](https://docs.godotengine.org/en/stable/classes/class_gradient.html), value: float, steps: int, dither: bool, x: int, y: int) static |
 | PackedFloat32Array | [kernel](#method-kernel)(kind: [Kernel](#enum-kernel), radius: int) static |
 | Array | [nearest_sources](#method-nearest_sources)(sources: PackedByteArray, w: int, h: int, frame: Vector2i) static |
 | Array[PackedFloat32Array] | [smear](#method-smear)(planes: Array[PackedFloat32Array], w: int, h: int, frame: Vector2i, direction: Vector2, length: int) static |
@@ -25,6 +26,10 @@ Soft image operations for ops like blur and glow: images as premultiplied float 
 - **BOX** = `0`: Every pixel within the radius counts the same.
 - **GAUSSIAN** = `1`: Nearer pixels count more: the softest look.
 
+## Constants
+
+- **BAYER_4** = `Array[float]([0.03125, 0.53125, 0.15625, 0.65625, 0.78125, 0.28125, 0.90625, 0.40625, 0.21875, 0.71875, 0.09375, 0.59375, 0.96875, 0.46875, 0.84375, 0.34375])`: 4×4 ordered-dithering (Bayer) thresholds, 0–1, row by row.
+
 ## Method Descriptions
 
 <a id="method-blur"></a>
@@ -38,6 +43,13 @@ Every plane blurred with `weights` across, then down, each frame of `frame` size
 ### [BitKilnBuffer](BitKilnBuffer.md) from_planes(planes: Array[PackedFloat32Array], w: int, h: int) static
 
 Premultiplied planes back to pixels.
+
+---
+
+<a id="method-gradient_color"></a>
+### int gradient_color(gradient: [Gradient](https://docs.godotengine.org/en/stable/classes/class_gradient.html), value: float, steps: int, dither: bool, x: int, y: int) static
+
+The color of `gradient` at `value` (0–1). With `steps` above 0, the value first snaps to the middle of one of that many bands (with `dither`, an ordered pattern at pixel (`x`, `y`) picks between neighbouring bands).
 
 ---
 

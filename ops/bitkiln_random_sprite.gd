@@ -20,7 +20,9 @@ enum Mirror {
 	BOTH, ## All four quarters mirror each other.
 }
 
+## What kind of sprites to make.
 @export var kind := Kind.CREATURE
+## Which halves mirror each other.
 @export var mirror := Mirror.HORIZONTAL
 ## Frame number n uses seed + n, so the same seed always makes the same set.
 @export var seed := 1

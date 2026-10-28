@@ -20,6 +20,7 @@ enum Effect {
 	RING, ## A shockwave ring expanding and thinning.
 }
 
+## Which effect to draw.
 @export var effect := Effect.IMPACT
 ## From the hot core (left) to the fading edge (right). Its alpha is kept, so a gradient
 ## ending transparent fades out. With Constant interpolation and points at 0, 1/n, 2/n…

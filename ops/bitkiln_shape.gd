@@ -18,6 +18,7 @@ enum Kind {
 	LINE, ## A line from [member offset] to [member line_end], [member line_width] thick.
 }
 
+## Which shape to draw.
 @export var kind := Kind.ELLIPSE
 ## Width and height in pixels (for polygons and stars, of the circle around them).
 @export var size := Vector2(12.0, 12.0)
@@ -27,6 +28,7 @@ enum Kind {
 @export var fill := Color(1.0, 1.0, 1.0, 1.0)
 ## Outline color, drawn along the inside of the shape's edge; alpha 0 = none.
 @export var outline := Color(0.0, 0.0, 0.0, 0.0)
+## Outline thickness, in pixels.
 @export_range(1, 16, 1, "suffix:px") var outline_width := 1
 ## Corners of a polygon, or tips of a star.
 @export_range(3, 32, 1) var sides := 5
@@ -36,6 +38,7 @@ enum Kind {
 @export_range(-360.0, 360.0, 0.5, "suffix:°") var rotation := 0.0
 ## For lines: the end, from the frame's center.
 @export var line_end := Vector2(4.0, 4.0)
+## For lines: thickness, in pixels.
 @export_range(1, 16, 1, "suffix:px") var line_width := 1
 
 @export_group("Animation")

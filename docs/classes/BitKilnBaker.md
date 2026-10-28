@@ -79,4 +79,4 @@ Every distinct color of `buffer`, opaque, darkest first, as a one-row image.
 <a id="method-run"></a>
 ### Array[[BitKilnContext](BitKilnContext.md)] run(recipe: [BitKilnRecipe](BitKilnRecipe.md), op_count: int = -1) static
 
-Runs the recipe's first `op_count` ops (all of them when negative) and returns one context per variant, or nothing when the source is missing.
+Runs the recipe's first `op_count` ops (all of them when negative) and returns one context per variant, or nothing when the source can't be read. Without a source, the ops start from a blank canvas.

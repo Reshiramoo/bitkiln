@@ -7,28 +7,42 @@ extends BitKilnOp
 ## Godot TileSet with the terrain already set up for the TileMap terrain tools.
 ##
 ## The source is five tiles in a row (set [member BitKilnRecipe.frames] to 5×1), each
-## drawn in one style all around:
-## 1. [b]Island[/b]: a tile with nothing around it, outer corners on all four sides.
-## 2. [b]Column[/b]: connected above and below, so its left and right edges show.
-## 3. [b]Row[/b]: connected left and right, so its top and bottom edges show.
-## 4. [b]Cross[/b]: connected on all four sides but not diagonally: inner corners.
-## 5. [b]Fill[/b]: the middle of the terrain.
+## drawn in one style all around:[br]
+## 1. [b]Island[/b]: a tile with nothing around it, outer corners on all four sides.[br]
+## 2. [b]Column[/b]: connected above and below, so its left and right edges show.[br]
+## 3. [b]Row[/b]: connected left and right, so its top and bottom edges show.[br]
+## 4. [b]Cross[/b]: connected on all four sides but not diagonally: inner corners.[br]
+## 5. [b]Fill[/b]: the middle of the terrain.[br]
 ## Every output tile is put together from quarters of these, so tiles need an even size.
 
 ## Tiles per row in the output (47 tiles plus one empty cell).
 @export_range(1, 48, 1) var columns := 8
 
-## Neighbour bits: N, NE, E, SE, S, SW, W, NW.
+## Neighbour bit: connected above.
 const N := 1
+## Neighbour bit: connected above and to the right.
 const NE := 2
+## Neighbour bit: connected to the right.
 const E := 4
+## Neighbour bit: connected below and to the right.
 const SE := 8
+## Neighbour bit: connected below.
 const S := 16
+## Neighbour bit: connected below and to the left.
 const SW := 32
+## Neighbour bit: connected to the left.
 const W := 64
+## Neighbour bit: connected above and to the left.
 const NW := 128
 
-enum Piece { ISLAND, COLUMN, ROW, CROSS, FILL }
+## The five template tiles, in source order.
+enum Piece {
+	ISLAND, ## Outer corners all around.
+	COLUMN, ## Left and right edges.
+	ROW, ## Top and bottom edges.
+	CROSS, ## Inner corners.
+	FILL, ## The middle.
+}
 
 
 func _apply(context: BitKilnContext) -> void:

@@ -13,6 +13,7 @@ What [bake()](#method-bake) did.
 | PackedStringArray | [files](#property-files) | `[]` |
 | bool | [ok](#property-ok) |  |
 | Array[Dictionary] | [sprite_frames](#property-sprite_frames) | `[]` |
+| Array[Dictionary] | [tile_sets](#property-tile_sets) | `[]` |
 | PackedStringArray | [warnings](#property-warnings) | `[]` |
 | PackedStringArray | [written](#property-written) | `[]` |
 
@@ -50,6 +51,13 @@ True when there are no [errors](#property-errors).
 ### Array[Dictionary] sprite_frames = `[]`
 
 [SpriteFrames](https://docs.godotengine.org/en/stable/classes/class_spriteframes.html) outputs, made by the editor once their PNGs are imported: `path`, `texture` (the PNG), `frames`, `frame_size`, `empty` (indices of frames with no visible pixels), `animations`, `names`, `fps`, `loop` and `skip_empty`.
+
+---
+
+<a id="property-tile_sets"></a>
+### Array[Dictionary] tile_sets = `[]`
+
+[TileSet](https://docs.godotengine.org/en/stable/classes/class_tileset.html) outputs, made by the editor once their PNGs are imported: `path`, `texture`, `frames`, `frame_size`, `empty`, `masks` (each cell's neighbour bits from [BitKilnAutotile](BitKilnAutotile.md), -1 for none, or empty without one), `terrain_name` and `terrain_color`.
 
 ---
 
