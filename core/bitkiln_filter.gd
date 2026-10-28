@@ -10,8 +10,8 @@ enum Kernel {
 	GAUSSIAN, ## Nearer pixels count more: the softest look.
 }
 
-## 4×4 ordered-dithering thresholds, row by row.
-const _BAYER_4: Array[float] = [0.03125, 0.53125, 0.15625, 0.65625, 0.78125, 0.28125, 0.90625, 0.40625,
+## 4×4 ordered-dithering (Bayer) thresholds, 0–1, row by row.
+const BAYER_4: Array[float] = [0.03125, 0.53125, 0.15625, 0.65625, 0.78125, 0.28125, 0.90625, 0.40625,
 	0.21875, 0.71875, 0.09375, 0.59375, 0.96875, 0.46875, 0.84375, 0.34375]
 
 
@@ -117,7 +117,7 @@ static func step_alpha(alpha: float, steps: int, dither: bool, x: int, y: int) -
 	if steps <= 0:
 		return alpha
 	var scaled := clampf(alpha, 0.0, 1.0) * steps
-	var threshold := _BAYER_4[(y % 4) * 4 + x % 4] if dither else 0.5
+	var threshold := BAYER_4[(y % 4) * 4 + x % 4] if dither else 0.5
 	return clampf(floorf(scaled + threshold), 0.0, steps) / steps
 
 
