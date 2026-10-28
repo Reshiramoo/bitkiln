@@ -4,6 +4,9 @@ extends SceneTree
 ##
 ##     godot --headless --script res://addons/bitkiln/tools/bake_all.gd
 ##
+## On a fresh checkout, run [code]godot --headless --import[/code] first, so the project's
+## classes (BitKilnRecipe and the ops) are registered.
+##
 ## Exits with code 1 if any recipe fails. CanvasTexture outputs need the editor to import
 ## their PNGs first, so they're reported and skipped here; open the editor once (or bake
 ## from the dock) to create them.

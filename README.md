@@ -184,6 +184,7 @@ BitKiln remembers what each recipe was last baked from, in the project's editor 
 To bake without opening the editor, for example in a build script:
 
 ```bash
+godot --headless --import    # on a fresh checkout: imports assets and registers BitKiln's classes
 godot --headless --script res://addons/bitkiln/tools/bake_all.gd
 ```
 
