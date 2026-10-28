@@ -31,6 +31,8 @@ func _create_recipes(images: PackedStringArray) -> void:
 	for image in images:
 		var recipe := BitKilnRecipe.new()
 		recipe.source = load(image) as Texture2D
+		if recipe.source != null:
+			recipe.frames = BitKilnSheet.guess_frames(BitKilnBaker.load_source(recipe))
 		var path := _free_path(image.get_basename() + "_kiln", "tres")
 		if ResourceSaver.save(recipe, path) != OK:
 			push_error("BitKiln: couldn't save %s." % path)

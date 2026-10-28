@@ -83,6 +83,10 @@ func bake(recipe: BitKilnRecipe) -> BitKilnBaker.Result:
 		var error := _save_canvas_texture(spec)
 		if not error.is_empty():
 			result.errors.append(error)
+	for spec in result.sprite_frames:
+		var error := _save_sprite_frames(spec)
+		if not error.is_empty():
+			result.errors.append(error)
 	var path := recipe.resource_path
 	if result.ok:
 		_errors.erase(path)
@@ -217,6 +221,42 @@ func _save_canvas_texture(spec: Dictionary) -> String:
 	texture.diffuse_texture = diffuse
 	texture.normal_texture = normal
 	var error := ResourceSaver.save(texture, path)
+	if error != OK:
+		return "Couldn't save %s: %s." % [path, error_string(error)]
+	EditorInterface.get_resource_filesystem().update_file(path)
+	return ""
+
+
+func _save_sprite_frames(spec: Dictionary) -> String:
+	var path: String = spec.path
+	var texture := ResourceLoader.load(spec.texture) as Texture2D
+	if texture == null:
+		return "%s: the color PNG isn't imported yet; bake again." % path.get_file()
+	var frames := ResourceLoader.load(path) as SpriteFrames if ResourceLoader.exists(path) else null
+	if frames == null:
+		frames = SpriteFrames.new()
+	# Rebuilt in place, so scenes using it keep working.
+	for animation in frames.get_animation_names():
+		frames.remove_animation(animation)
+	var grid: Vector2i = spec.frames
+	var size: Vector2i = spec.frame_size
+	var empty: PackedInt32Array = spec.empty
+	var names: PackedStringArray = spec.names
+	var per_row: bool = spec.animations == BitKilnOutput.Animations.PER_ROW
+	for row in (grid.y if per_row else 1):
+		var animation := StringName(names[row] if row < names.size() else ("row_%d" % row if per_row else "default"))
+		frames.add_animation(animation)
+		frames.set_animation_speed(animation, spec.fps)
+		frames.set_animation_loop(animation, spec.loop)
+		var indices := range(row * grid.x, (row + 1) * grid.x) if per_row else range(grid.x * grid.y)
+		for index: int in indices:
+			if spec.skip_empty and index in empty:
+				continue
+			var atlas := AtlasTexture.new()
+			atlas.atlas = texture
+			atlas.region = Rect2(Vector2(Vector2i(index % grid.x, index / grid.x) * size), Vector2(size))
+			frames.add_frame(animation, atlas)
+	var error := ResourceSaver.save(frames, path)
 	if error != OK:
 		return "Couldn't save %s: %s." % [path, error_string(error)]
 	EditorInterface.get_resource_filesystem().update_file(path)

@@ -5,11 +5,13 @@ const Library := preload("editor/kiln_library.gd")
 const KilnDock := preload("editor/kiln_dock.gd")
 const ContextMenu := preload("editor/context_menu.gd")
 const PaletteImporter := preload("editor/palette_importer.gd")
+const RecipeInspector := preload("editor/recipe_inspector.gd")
 
 var _library: Library
 var _dock: KilnDock
 var _context_menu: ContextMenu
 var _importer: PaletteImporter
+var _inspector: RecipeInspector
 var _refresh_queued := false
 
 
@@ -17,6 +19,8 @@ func _enter_tree() -> void:
 	_library = Library.new()
 	_importer = PaletteImporter.new()
 	add_import_plugin(_importer)
+	_inspector = RecipeInspector.new()
+	add_inspector_plugin(_inspector)
 	_dock = KilnDock.new()
 	_dock.setup(self, _library)
 	add_dock(_dock)
@@ -42,6 +46,7 @@ func _exit_tree() -> void:
 	remove_context_menu_plugin(_context_menu)
 	remove_dock(_dock)
 	_dock.queue_free()
+	remove_inspector_plugin(_inspector)
 	remove_import_plugin(_importer)
 
 

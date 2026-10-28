@@ -23,14 +23,14 @@ func _init() -> void:
 		var result := BitKilnBaker.bake(recipe)
 		var status := "ok" if result.ok else "FAILED"
 		print("%s: %s (%d written, %d up to date)" % [path, status, result.written.size(),
-			result.files.size() - result.written.size() - result.canvas_textures.size()])
+			result.files.size() - result.written.size() - result.canvas_textures.size() - result.sprite_frames.size()])
 		for error in result.errors:
 			printerr("  error: ", error)
 			failed += 1
 		for warning in result.warnings:
 			print("  warning: ", warning)
-		for spec in result.canvas_textures:
-			print("  skipped %s: CanvasTextures are made by the editor" % spec.path)
+		for spec in result.canvas_textures + result.sprite_frames:
+			print("  skipped %s: made by the editor once the PNGs are imported" % spec.path)
 	print("%d recipe%s baked, %d error%s." % [recipes.size(), "" if recipes.size() == 1 else "s", failed,
 		"" if failed == 1 else "s"])
 	quit(1 if failed > 0 else 0)

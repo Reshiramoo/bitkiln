@@ -21,6 +21,11 @@ class Result:
 	## [CanvasTexture] outputs, made by the editor once their PNGs are imported:
 	## [code]{"path": String, "diffuse": String, "normal": String}[/code] each.
 	var canvas_textures: Array[Dictionary] = []
+	## [SpriteFrames] outputs, made by the editor once their PNGs are imported: [code]path[/code],
+	## [code]texture[/code] (the PNG), [code]frames[/code], [code]frame_size[/code],
+	## [code]empty[/code] (indices of frames with no visible pixels), [code]animations[/code],
+	## [code]names[/code], [code]fps[/code], [code]loop[/code] and [code]skip_empty[/code].
+	var sprite_frames: Array[Dictionary] = []
 
 	## True when there are no [member errors].
 	var ok: bool:
@@ -125,7 +130,7 @@ static func bake(recipe: BitKilnRecipe) -> Result:
 				result.warnings.append(warning)
 		var written_layers := {} # Kind -> path, for canvas textures
 		for output in recipe.outputs:
-			if output == null or output.kind == BitKilnOutput.Kind.CANVAS_TEXTURE:
+			if output == null or output.kind in [BitKilnOutput.Kind.CANVAS_TEXTURE, BitKilnOutput.Kind.SPRITE_FRAMES]:
 				continue
 			var path := output.resolve(source_path, recipe.resource_path, context.variant)
 			var layer := BitKilnContext.NORMAL if output.kind == BitKilnOutput.Kind.NORMAL else BitKilnContext.COLOR
@@ -141,6 +146,31 @@ static func bake(recipe: BitKilnRecipe) -> Result:
 				else context.get_layer(layer).to_image()
 			if _save_png(image, path, result):
 				written_layers[output.kind] = path
+		for output in recipe.outputs:
+			if output == null or output.kind != BitKilnOutput.Kind.SPRITE_FRAMES:
+				continue
+			var path := output.resolve(source_path, recipe.resource_path, context.variant)
+			var error := _check_path(path, source_path, seen)
+			if not error.is_empty():
+				result.errors.append(error)
+				continue
+			if not written_layers.has(BitKilnOutput.Kind.COLOR):
+				result.errors.append("%s needs a Color output in the same recipe." % path.get_file())
+				continue
+			seen[path] = true
+			result.files.append(path)
+			result.sprite_frames.append({
+				"path": path,
+				"texture": written_layers[BitKilnOutput.Kind.COLOR],
+				"frames": context.frames,
+				"frame_size": context.frame_size,
+				"empty": empty_frames(context),
+				"animations": output.animations,
+				"names": output.animation_names,
+				"fps": output.fps,
+				"loop": output.loop,
+				"skip_empty": output.skip_empty,
+			})
 		for output in recipe.outputs:
 			if output == null or output.kind != BitKilnOutput.Kind.CANVAS_TEXTURE:
 				continue
@@ -159,6 +189,27 @@ static func bake(recipe: BitKilnRecipe) -> Result:
 				"diffuse": written_layers[BitKilnOutput.Kind.COLOR],
 				"normal": written_layers[BitKilnOutput.Kind.NORMAL],
 			})
+	return result
+
+
+## Indices (row by row) of [param context]'s frames with no visible pixels.
+static func empty_frames(context: BitKilnContext) -> PackedInt32Array:
+	var result := PackedInt32Array()
+	var size := context.frame_size
+	var p := context.color.pixels
+	for index in context.frames.x * context.frames.y:
+		var origin := Vector2i(index % context.frames.x, index / context.frames.x) * size
+		var empty := true
+		for y in size.y:
+			var row := (origin.y + y) * context.width + origin.x
+			for x in size.x:
+				if p[row + x] != 0:
+					empty = false
+					break
+			if not empty:
+				break
+		if empty:
+			result.append(index)
 	return result
 
 
