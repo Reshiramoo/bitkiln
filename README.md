@@ -6,11 +6,15 @@ don't need the plugin, and the original art is never touched.
 
 - **Recipes** instead of edited copies: a source image, a stack of ops and the files to write.
   Change the source in Aseprite and the recipe bakes again by itself.
-- **Pixel-art ops**: outlines (including selective outlines), drop and long shadows, padding and
-  trimming, palette swaps that make one variant per palette, palette quantizing with dithering.
-- **Scalers** that add no new colors: Scale2x / Scale3x / Scale4x (EPX) and MMPX.
-- **Normal maps** for 2D lights, with snapping to a few directions so lighting falls in clean
-  bands, and ready-made `CanvasTexture`s.
+- **Pixel-art ops**: outlines (including selective outlines), drop and long shadows, glows in
+  crisp rings, blurs snapped to a few alpha levels, palette swaps that make one variant per
+  palette, quantizing with dithering, color reduction, gradient maps, and masks to limit any op
+  to part of the sprite.
+- **Scalers and rotation** that add no new colors: Scale2x / Scale3x / Scale4x (EPX), MMPX, and
+  RotSprite rotation, including 8- or 16-direction sets.
+- **Lighting**: normal maps for 2D lights (snapped to a few directions so light falls in clean
+  bands, ready-made `CanvasTexture`s) and automatic banded, hue-shifted shading.
+- **Sprite sheets**: frame-grid guessing, repacking, and `SpriteFrames` for AnimatedSprite2D.
 - **Editor tools**: a dock with a live preview (side by side, lit by a light that follows the
   mouse), bake status for every recipe, pixel-art import checks, and a Lospec palette importer.
 
@@ -24,9 +28,14 @@ don't need the plugin, and the original art is never touched.
   - [Frames](#frames)
   - [Outputs](#outputs)
 - [Ops](#ops)
+  - [Masks](#masks)
   - [Palettes and variants](#palettes-and-variants)
   - [Scalers](#scalers)
+  - [Rotation](#rotation)
   - [Normal maps](#normal-maps)
+  - [Shading](#shading)
+  - [Glow and blur](#glow-and-blur)
+  - [Sprite sheets](#sprite-sheets)
 - [Editor tools](#editor-tools)
   - [Baking and auto bake](#baking-and-auto-bake)
   - [Import checks](#import-checks)
@@ -73,7 +82,9 @@ starting points for similar sprites. A recipe's source can be another recipe's o
 
 ### Frames
 
-Set `frames` to the sheet's grid (8×1 for an eight-frame strip). Every op then works on each
+Set `frames` to the sheet's grid (8×1 for an eight-frame strip), or click **Guess Frame Grid**
+next to it in the Inspector: BitKiln picks the most frames whose edges cut no sprite. New
+recipes start with that guess. Every op then works on each
 frame as if it were its own image: outlines, shadows and normal maps stop at frame edges instead
 of reaching into the next frame, scalers scale frames one by one, and padding or trimming
 changes every frame by the same amount so the grid stays regular.
@@ -85,6 +96,8 @@ changes every frame by the same amount so the grid stays regular.
 | **Color** | The result, as a PNG. |
 | **Normal** | The normal map from a [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md), as a PNG. |
 | **Canvas Texture** | A `CanvasTexture` `.tres` pairing the recipe's Color and Normal outputs, with the nearest filter: drop it on a Sprite2D and it reacts to 2D lights. Needs a Color and a Normal output in the same recipe. |
+| **Palette** | Every color of the result, darkest first, as a one-row PNG: a palette for Palette Swap, Quantize or Pocket's shaders. |
+| **Sprite Frames** | A `SpriteFrames` `.tres` for an AnimatedSprite2D, cut from the Color output: one animation, or one per row (named, with fps and looping), leaving out empty cells. See [Sprite sheets](#sprite-sheets). |
 
 An output's `path` can use `{dir}` (the source's folder), `{name}` (the source's file name
 without extension), `{recipe}` (the recipe's file name) and `{variant}` (an underscore and the
@@ -96,17 +109,44 @@ reimport for nothing).
 
 | Op | What it does |
 |---|---|
-| [BitKilnPad](docs/classes/BitKilnPad.md) | Adds transparent space around every frame, so outlines and shadows have room. |
+| **Shape** | |
+| [BitKilnPad](docs/classes/BitKilnPad.md) | Adds transparent space around every frame, so outlines, shadows and glows have room. |
 | [BitKilnTrim](docs/classes/BitKilnTrim.md) | Cuts away empty space, by the same amount on every frame, keeping a margin if you like. |
+| [BitKilnExtrude](docs/classes/BitKilnExtrude.md) | Grows frames with copies of their edge pixels, against bleeding in atlases and tile sets. |
+| [BitKilnTransform](docs/classes/BitKilnTransform.md) | Flips and quarter turns, per frame. |
+| [BitKilnRotate](docs/classes/BitKilnRotate.md) | RotSprite rotation by any angle, or a set of directions (see [Rotation](#rotation)). |
+| [BitKilnScale](docs/classes/BitKilnScale.md) | Scales up with a pixel-art scaler (see [Scalers](#scalers)). |
+| [BitKilnRepack](docs/classes/BitKilnRepack.md) | Rearranges or picks frames (see [Sprite sheets](#sprite-sheets)). |
+| **Edges and light** | |
 | [BitKilnOutline](docs/classes/BitKilnOutline.md) | Outer or inner outline, 1–8 px, round / square / diamond (the same shapes as Pocket's `sprite_fx` shader). **Selective** coloring ("sel-out") colors each outline pixel with a darker version of the sprite color next to it. |
 | [BitKilnShadow](docs/classes/BitKilnShadow.md) | Hard drop shadow behind the sprite; with a length above 1, a long shadow. |
-| [BitKilnPaletteSwap](docs/classes/BitKilnPaletteSwap.md) | Replaces colors, with one variant per palette (see below). |
-| [BitKilnQuantize](docs/classes/BitKilnQuantize.md) | Snaps every color to the nearest palette color, with optional Bayer dithering (2×2, 4×4, 8×8), and makes alpha fully on or off. |
-| [BitKilnScale](docs/classes/BitKilnScale.md) | Scales up with a pixel-art scaler (see [Scalers](#scalers)). |
+| [BitKilnGlow](docs/classes/BitKilnGlow.md) | A halo in crisp rings around the sprite or its bright pixels (see [Glow and blur](#glow-and-blur)). |
+| [BitKilnBlur](docs/classes/BitKilnBlur.md) | Box, gaussian or motion blur with the soft edges snapped to a few alpha levels. |
 | [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md) | Makes a normal map layer (see [Normal maps](#normal-maps)). |
+| [BitKilnShade](docs/classes/BitKilnShade.md) | Banded, hue-shifted shading and rim light from the normals (see [Shading](#shading)). |
+| **Color** | |
+| [BitKilnPaletteSwap](docs/classes/BitKilnPaletteSwap.md) | Replaces colors, with one variant per palette (see [Palettes and variants](#palettes-and-variants)). |
+| [BitKilnQuantize](docs/classes/BitKilnQuantize.md) | Snaps every color to the nearest palette color, with optional Bayer dithering (2×2, 4×4, 8×8), and makes alpha fully on or off. |
+| [BitKilnReduce](docs/classes/BitKilnReduce.md) | Reduces the image to at most N colors picked from itself (median cut). Add a Palette output to save them. |
+| [BitKilnAdjust](docs/classes/BitKilnAdjust.md) | Hue, saturation, brightness, contrast and tint. |
+| [BitKilnGradientMap](docs/classes/BitKilnGradientMap.md) | Recolors by brightness through a Gradient: greyscale art into any color scheme. |
 
 Order matters: an outline after a palette swap follows the new colors; an outline before a scaler
-gets scaled with the sprite, one after it stays 1 px thin.
+gets scaled with the sprite, one after it stays 1 px thin; shade before outlining, or the outline
+gets shaded too.
+
+### Masks
+
+Every op has a **Mask** group, to limit it to part of the sprite: outside the mask, the image
+keeps the pixels it had before the op. A mask is an image drawn over the source, either one
+frame's size (used for every frame) or the whole sheet's. White pixels are inside, black or
+transparent ones outside. Masks follow padding, trimming and scaling done by earlier ops, so you
+always draw them over the original art.
+
+With **Mask By Color**, only pixels of exactly **Mask Color** are inside. One region map with a
+color per part (red for the hair, blue for the cape) then serves several ops: an Adjust on the hair
+only, a Palette Swap on the cape only. **Mask Invert** works outside the mask instead. Ops that
+change the image's size can't be masked.
 
 ### Palettes and variants
 
@@ -141,6 +181,19 @@ customization, palette cycling).
 None of them add colors, so the result stays in your palette. A normal map layer is scaled
 nearest alongside the colors.
 
+### Rotation
+
+[BitKilnRotate](docs/classes/BitKilnRotate.md) rotates with RotSprite: each frame is scaled to 8×
+with Scale2x (three times), then sampled at the rotated positions. Lines stay clean and no new
+colors appear, where ordinary rotation smears or breaks pixel art. Angles are clockwise; exact
+quarter turns use the original pixels.
+
+Set **Directions** to make a set facing evenly around the circle from **Angle**: 8 for top-down
+characters, 16 for vehicles. With the **Variants** layout each direction bakes to its own file
+(`ship_baked_r045.png`); with **Rows** they stack as rows of one sheet, ready for a Sprite Frames
+output with one animation per row. **Expand** grows frames to fit the rotated corners, the same
+size for every angle. Normal maps rotate with the colors.
+
 ### Normal maps
 
 [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md) builds a height map, then turns its slopes into normals:
@@ -154,6 +207,38 @@ nearest alongside the colors.
 
 Normals follow Godot's convention (green = up); `flip_green` gives DirectX's. Switch the dock's
 layer menu to **Lit** to see the sprite shaded by a light that follows the mouse.
+
+### Shading
+
+[BitKilnShade](docs/classes/BitKilnShade.md) shades flat colors the way pixel artists do: a few
+lighter bands on the side facing **Light Direction** and darker ones away from it, spread over the
+light the sprite actually gets so every band shows. Hues shift toward yellow in the light and
+toward blue in the shadow (**Hue Shift**, **Saturation Shift**), instead of only getting lighter
+or darker. With a **Palette**, every shade snaps to its nearest color.
+
+The shape comes from a [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md) before it (whose
+snapping decides how the bands fall), or from a smooth rounded one made just for shading. The
+**Rim Light** group adds a thin edge of light on the edges facing **Rim Direction**.
+
+### Glow and blur
+
+[BitKilnGlow](docs/classes/BitKilnGlow.md) draws a halo that fades over **Radius** pixels in a few
+crisp **Rings**, around the whole sprite or only its bright pixels (eyes, gems, flames). It can use
+one color or the glowing pixels' own colors, stay behind the sprite or add light over it.
+
+[BitKilnBlur](docs/classes/BitKilnBlur.md) blurs with a box, a gaussian or a motion smear, then
+snaps the soft edges to **Alpha Steps** levels of transparency. Both can dither between levels
+with an ordered pattern. Follow either with a Quantize to bring the colors into your palette.
+
+### Sprite sheets
+
+- **Frames**: set the grid, or click **Guess Frame Grid** (see [Frames](#frames)).
+- [BitKilnRepack](docs/classes/BitKilnRepack.md) rearranges frames into a new number of
+  **Columns** (0 = one row), keeps a range (**First**, **Count**) and can **Skip Empty** frames:
+  a 4×4 sheet into a strip, a strip into rows of 8, frames 5–8 as their own animation.
+- A **Sprite Frames** output writes a `SpriteFrames` resource cut from the Color output. With
+  **Per Row**, each row of frames becomes an animation, named by **Animation Names** (or
+  `row_0`, `row_1`…). Rebaking rebuilds the same file, so scenes using it keep working.
 
 ## Editor tools
 
@@ -250,15 +335,22 @@ returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPale
 | [BitKilnRecipe](docs/classes/BitKilnRecipe.md) | Source, ops and outputs. |
 | [BitKilnOutput](docs/classes/BitKilnOutput.md) | A file a recipe writes. |
 | [BitKilnOp](docs/classes/BitKilnOp.md) | Base class of ops. |
-| [BitKilnPad](docs/classes/BitKilnPad.md), [BitKilnTrim](docs/classes/BitKilnTrim.md), [BitKilnOutline](docs/classes/BitKilnOutline.md), [BitKilnShadow](docs/classes/BitKilnShadow.md), [BitKilnPaletteSwap](docs/classes/BitKilnPaletteSwap.md), [BitKilnQuantize](docs/classes/BitKilnQuantize.md), [BitKilnScale](docs/classes/BitKilnScale.md), [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md) | The ops. |
+| [BitKilnPad](docs/classes/BitKilnPad.md), [BitKilnTrim](docs/classes/BitKilnTrim.md), [BitKilnExtrude](docs/classes/BitKilnExtrude.md), [BitKilnTransform](docs/classes/BitKilnTransform.md), [BitKilnRotate](docs/classes/BitKilnRotate.md), [BitKilnScale](docs/classes/BitKilnScale.md), [BitKilnRepack](docs/classes/BitKilnRepack.md) | Shape ops. |
+| [BitKilnOutline](docs/classes/BitKilnOutline.md), [BitKilnShadow](docs/classes/BitKilnShadow.md), [BitKilnGlow](docs/classes/BitKilnGlow.md), [BitKilnBlur](docs/classes/BitKilnBlur.md), [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md), [BitKilnShade](docs/classes/BitKilnShade.md) | Edge and light ops. |
+| [BitKilnPaletteSwap](docs/classes/BitKilnPaletteSwap.md), [BitKilnQuantize](docs/classes/BitKilnQuantize.md), [BitKilnReduce](docs/classes/BitKilnReduce.md), [BitKilnAdjust](docs/classes/BitKilnAdjust.md), [BitKilnGradientMap](docs/classes/BitKilnGradientMap.md) | Color ops. |
 | [BitKilnBaker](docs/classes/BitKilnBaker.md), [BitKilnBaker.Result](docs/classes/BitKilnBaker.Result.md) | Runs recipes and writes their outputs. |
 | [BitKilnContext](docs/classes/BitKilnContext.md) | The layers and frame grid ops work on. |
 | [BitKilnBuffer](docs/classes/BitKilnBuffer.md) | RGBA8 pixels as packed ints. |
 | [BitKilnPalette](docs/classes/BitKilnPalette.md) | Reads palettes from textures; color distance. |
+| [BitKilnFilter](docs/classes/BitKilnFilter.md) | Soft operations for ops: blurs, alpha steps, distances. |
+| [BitKilnSheet](docs/classes/BitKilnSheet.md) | Sprite sheet helpers: frame grid guessing, sprite bounds. |
 
 ## Limitations
 
 - **Speed.** Ops run in GDScript on the CPU. Sprites and sheets of a few hundred pixels preview
-  instantly; very large sheets with 4× scalers take noticeably longer.
+  instantly; very large sheets with 4× scalers or RotSprite (which works at 8×) take noticeably
+  longer. Turn ops off while tuning the others.
 - **Whole-number scaling only**, and the scalers are 2×-based (plus Scale3x).
+- **Masks** only work on ops that keep the image's size, and after Transform, Rotate or Repack
+  they're stretched over the new frame instead of following the art exactly.
 - **Members starting with `_`** are internal and may change between versions.

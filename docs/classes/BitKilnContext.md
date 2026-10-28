@@ -17,7 +17,10 @@ Every layer has the same size. [frames](#property-frames) splits them into equal
 | Vector2i | [frames](#property-frames) | `Vector2i(1, 1)` |
 | int | [height](#property-height) |  |
 | Dictionary | [layers](#property-layers) | `{}` |
+| Vector2i | [source_frame_size](#property-source_frame_size) | `Vector2i(1, 1)` |
+| Vector2 | [source_offset](#property-source_offset) | `Vector2(0, 0)` |
 | String | [source_path](#property-source_path) | `""` |
+| Vector2 | [source_scale](#property-source_scale) | `Vector2(1, 1)` |
 | String | [variant](#property-variant) | `""` |
 | PackedStringArray | [warnings](#property-warnings) | `[]` |
 | int | [width](#property-width) |  |
@@ -31,8 +34,10 @@ Every layer has the same size. [frames](#property-frames) splits them into equal
 | [BitKilnBuffer](BitKilnBuffer.md) | [get_layer](#method-get_layer)(layer_name: StringName) |
 | bool | [has_layer](#method-has_layer)(layer_name: StringName) |
 | void | [remap_frames](#method-remap_frames)(new_frame_size: Vector2i, offset: Vector2i) |
+| void | [reset_source_mapping](#method-reset_source_mapping)() |
 | [BitKilnBuffer](BitKilnBuffer.md) | [scale_buffer](#method-scale_buffer)(src: [BitKilnBuffer](BitKilnBuffer.md), factor: int) static |
 | void | [scale_nearest](#method-scale_nearest)(factor: int) |
+| Vector2i | [to_source](#method-to_source)(local: Vector2i) |
 | void | [warn](#method-warn)(message: String) |
 
 ## Constants
@@ -77,10 +82,31 @@ Layer name -> [BitKilnBuffer](BitKilnBuffer.md). `color` always exists; `normal`
 
 ---
 
+<a id="property-source_frame_size"></a>
+### Vector2i source_frame_size = `Vector2i(1, 1)`
+
+Size of one frame of the source image, before any op.
+
+---
+
+<a id="property-source_offset"></a>
+### Vector2 source_offset = `Vector2(0, 0)`
+
+Where the source frame's top-left corner is in the current frame, in current pixels. Padding and trimming move it; with [source_scale](#property-source_scale), it maps current pixels back to the source (see [to_source()](#method-to_source)), which is how masks follow the art.
+
+---
+
 <a id="property-source_path"></a>
 ### String source_path = `""`
 
 The recipe's source image path, for messages.
+
+---
+
+<a id="property-source_scale"></a>
+### Vector2 source_scale = `Vector2(1, 1)`
+
+Current pixels per source pixel. Scaling multiplies it.
 
 ---
 
@@ -140,6 +166,13 @@ Moves every frame's content by `offset` into frames of `new_frame_size`, cutting
 
 ---
 
+<a id="method-reset_source_mapping"></a>
+### void reset_source_mapping()
+
+For ops that move pixels in ways [to_source()](#method-to_source) can't follow (rotating, repacking): from now on the source frame is taken to be stretched over the whole current frame.
+
+---
+
 <a id="method-scale_buffer"></a>
 ### [BitKilnBuffer](BitKilnBuffer.md) scale_buffer(src: [BitKilnBuffer](BitKilnBuffer.md), factor: int) static
 
@@ -151,6 +184,13 @@ Moves every frame's content by `offset` into frames of `new_frame_size`, cutting
 ### void scale_nearest(factor: int)
 
 Scales every layer up by a whole `factor`, nearest neighbour. Ops with a smarter algorithm for the color layer replace it afterwards.
+
+---
+
+<a id="method-to_source"></a>
+### Vector2i to_source(local: Vector2i)
+
+The source pixel (within one source frame) that the pixel at `local` (within one current frame) came from, clamped to the source frame.
 
 ---
 

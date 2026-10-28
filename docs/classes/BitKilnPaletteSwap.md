@@ -17,12 +17,6 @@ A palette is either two rows, as used by Pocket's `sprite_fx` palette swap (row 
 | Array[[Texture2D](https://docs.godotengine.org/en/stable/classes/class_texture2d.html)] | [palettes](#property-palettes) | `[]` |
 | float | [tolerance](#property-tolerance) | `0.0` |
 
-## Methods
-
-| Return | Signature |
-|---|---|
-| Array[[BitKilnContext](BitKilnContext.md)] | [process](#method-process)(context: [BitKilnContext](BitKilnContext.md)) |
-
 ## Property Descriptions
 
 <a id="property-base_palette"></a>
@@ -50,10 +44,3 @@ One variant each. Two-row palettes map row 0 to row 1; one-row palettes replace 
 ### float tolerance = `0.0`
 
 How far (0–1, per channel) a color may be from a palette color and still be replaced. Keep it at 0 for clean pixel art.
-
-## Method Descriptions
-
-<a id="method-process"></a>
-### Array[[BitKilnContext](BitKilnContext.md)] process(context: [BitKilnContext](BitKilnContext.md))
-
-One context per palette (plus the original with [keep_original](#property-keep_original)).

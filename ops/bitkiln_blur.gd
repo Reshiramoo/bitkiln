@@ -13,6 +13,7 @@ enum Kind {
 	MOTION, ## Smeared behind [member direction], as if moving fast.
 }
 
+## How the blur spreads.
 @export var kind := Kind.GAUSSIAN
 ## How far the blur reaches, in pixels (the length of the smear for Motion).
 @export_range(1, 32, 1, "or_greater", "suffix:px") var radius := 2

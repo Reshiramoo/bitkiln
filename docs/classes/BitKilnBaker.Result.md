@@ -12,6 +12,7 @@ What [bake()](#method-bake) did.
 | PackedStringArray | [errors](#property-errors) | `[]` |
 | PackedStringArray | [files](#property-files) | `[]` |
 | bool | [ok](#property-ok) |  |
+| Array[Dictionary] | [sprite_frames](#property-sprite_frames) | `[]` |
 | PackedStringArray | [warnings](#property-warnings) | `[]` |
 | PackedStringArray | [written](#property-written) | `[]` |
 
@@ -42,6 +43,13 @@ Every output file, written or already up to date.
 ### bool ok
 
 True when there are no [errors](#property-errors).
+
+---
+
+<a id="property-sprite_frames"></a>
+### Array[Dictionary] sprite_frames = `[]`
+
+[SpriteFrames](https://docs.godotengine.org/en/stable/classes/class_spriteframes.html) outputs, made by the editor once their PNGs are imported: `path`, `texture` (the PNG), `frames`, `frame_size`, `empty` (indices of frames with no visible pixels), `animations`, `names`, `fps`, `loop` and `skip_empty`.
 
 ---
 

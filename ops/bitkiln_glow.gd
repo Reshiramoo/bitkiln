@@ -16,6 +16,7 @@ enum Blend {
 	ADD, ## The glow also lightens the sprite itself, like light spilling over it.
 }
 
+## What glows: the whole sprite or its bright pixels.
 @export var source := Source.SILHOUETTE
 ## For Bright: how bright (0–1) a pixel must be to glow.
 @export_range(0.0, 1.0, 0.01) var brightness_threshold := 0.8
@@ -35,6 +36,7 @@ enum Blend {
 @export_range(0, 8, 1) var rings := 3
 ## Pick between two rings with an ordered (Bayer) pattern instead of rounding.
 @export var dither := false
+## Whether the glow stays behind the sprite or also lightens it.
 @export var blend := Blend.BEHIND
 
 

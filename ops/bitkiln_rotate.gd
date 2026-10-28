@@ -20,6 +20,7 @@ enum Layout {
 ## How many directions to make, evenly around the circle starting at [member angle]:
 ## 8 = every 45°. 0 or 1 = just [member angle].
 @export_range(0, 64, 1) var directions := 0
+## With several directions: separate variants, or rows of one sheet.
 @export var layout := Layout.VARIANTS
 ## Grow frames to fit the rotated frame's corners (the same size for every angle, so
 ## frames stay aligned). Off: keep the size and cut off what falls outside.

@@ -17,6 +17,7 @@ enum Turn {
 @export var flip_h := false
 ## Mirror top to bottom (before turning).
 @export var flip_v := false
+## Quarter turns, after the flips.
 @export var turn := Turn.NONE
 
 
