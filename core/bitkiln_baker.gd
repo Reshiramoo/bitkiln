@@ -128,7 +128,7 @@ static func bake(recipe: BitKilnRecipe) -> Result:
 			if output == null or output.kind == BitKilnOutput.Kind.CANVAS_TEXTURE:
 				continue
 			var path := output.resolve(source_path, recipe.resource_path, context.variant)
-			var layer := BitKilnContext.COLOR if output.kind == BitKilnOutput.Kind.COLOR else BitKilnContext.NORMAL
+			var layer := BitKilnContext.NORMAL if output.kind == BitKilnOutput.Kind.NORMAL else BitKilnContext.COLOR
 			var error := _check_path(path, source_path, seen)
 			if not error.is_empty():
 				result.errors.append(error)
@@ -137,7 +137,9 @@ static func bake(recipe: BitKilnRecipe) -> Result:
 				result.errors.append("%s: there's no normal map to save. Add a BitKilnNormalMap op." % path.get_file())
 				continue
 			seen[path] = true
-			if _save_png(context.get_layer(layer).to_image(), path, result):
+			var image := palette_image(context.color) if output.kind == BitKilnOutput.Kind.PALETTE \
+				else context.get_layer(layer).to_image()
+			if _save_png(image, path, result):
 				written_layers[output.kind] = path
 		for output in recipe.outputs:
 			if output == null or output.kind != BitKilnOutput.Kind.CANVAS_TEXTURE:
@@ -158,6 +160,24 @@ static func bake(recipe: BitKilnRecipe) -> Result:
 				"normal": written_layers[BitKilnOutput.Kind.NORMAL],
 			})
 	return result
+
+
+## Every distinct color of [param buffer], opaque, darkest first, as a one-row image.
+static func palette_image(buffer: BitKilnBuffer) -> Image:
+	var opaque := {}
+	for c in buffer.get_colors():
+		opaque[BitKilnBuffer.with_alpha(c, 255)] = true
+	var colors: Array = opaque.keys()
+	colors.sort_custom(func(a: int, b: int) -> bool:
+		var la := (a & 0xFF) * 299 + ((a >> 8) & 0xFF) * 587 + ((a >> 16) & 0xFF) * 114
+		var lb := (b & 0xFF) * 299 + ((b >> 8) & 0xFF) * 587 + ((b >> 16) & 0xFF) * 114
+		return la < lb if la != lb else a < b)
+	var strip := BitKilnBuffer.create(maxi(colors.size(), 1), 1)
+	var p := strip.pixels
+	for i in colors.size():
+		p[i] = colors[i]
+	strip.pixels = p
+	return strip.to_image()
 
 
 ## Changes whenever anything that affects the result changes: the source file, the ops

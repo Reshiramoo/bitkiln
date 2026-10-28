@@ -2,13 +2,14 @@
 @icon("res://addons/bitkiln/icons/output.svg")
 class_name BitKilnOutput
 extends Resource
-## A file a [BitKilnRecipe] writes when baked: a layer saved as a PNG, or a
-## [CanvasTexture] that pairs the recipe's color and normal PNGs.
+## A file a [BitKilnRecipe] writes when baked: a layer saved as a PNG, the result's
+## palette, or a [CanvasTexture] that pairs the recipe's color and normal PNGs.
 
 enum Kind {
 	COLOR, ## The color layer, as a PNG.
 	NORMAL, ## The normal map from a [BitKilnNormalMap], as a PNG.
 	CANVAS_TEXTURE, ## A [CanvasTexture] [code].tres[/code] using the recipe's Color and Normal outputs, ready for a Sprite2D with 2D lights.
+	PALETTE, ## Every color of the result, darkest to brightest, as a one-row PNG: usable as a palette by [BitKilnPaletteSwap], [BitKilnQuantize] or Pocket's shaders.
 }
 
 ## Default [member path] for each [enum Kind].
@@ -16,6 +17,7 @@ const DEFAULT_PATHS := {
 	Kind.COLOR: "{dir}/{name}_baked{variant}.png",
 	Kind.NORMAL: "{dir}/{name}_baked{variant}_n.png",
 	Kind.CANVAS_TEXTURE: "{dir}/{name}_lit{variant}.tres",
+	Kind.PALETTE: "{dir}/{name}_palette{variant}.png",
 }
 
 ## What to write. Changing it also changes [member path] while it's still a default one.
