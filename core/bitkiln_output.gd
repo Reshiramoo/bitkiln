@@ -35,7 +35,7 @@ const DEFAULT_PATHS := {
 		kind = value
 		notify_property_list_changed()
 ## Where to save. [code]{dir}[/code] is the source image's folder, [code]{name}[/code]
-## its file name without extension, [code]{recipe}[/code] the recipe's file name without
+## its file name without extension (the recipe's folder and name without a source), [code]{recipe}[/code] the recipe's file name without
 ## extension, and [code]{variant}[/code] an underscore and the variant's name (or nothing
 ## for the main image). Without [code]{variant}[/code], variants get it before the
 ## extension anyway, so they never overwrite each other.

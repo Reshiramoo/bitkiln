@@ -88,14 +88,20 @@ static func load_image_file(path: String) -> Image:
 
 
 ## Runs the recipe's first [param op_count] ops (all of them when negative) and returns
-## one context per variant, or nothing when the source is missing.
+## one context per variant, or nothing when the source can't be read. Without a source,
+## the ops start from a blank canvas.
 static func run(recipe: BitKilnRecipe, op_count := -1) -> Array[BitKilnContext]:
 	var result: Array[BitKilnContext] = []
-	var image := load_source(recipe)
+	var image: Image
+	if recipe.source == null:
+		var size := recipe.canvas_size * recipe.frames
+		image = Image.create_empty(size.x, size.y, false, Image.FORMAT_RGBA8)
+	else:
+		image = load_source(recipe)
 	if image == null or image.is_empty():
 		return result
 	var context := BitKilnContext.create(image, recipe.frames)
-	context.source_path = recipe.source.resource_path
+	context.source_path = recipe.get_naming_path()
 	result.append(context)
 	var count := recipe.ops.size() if op_count < 0 else mini(op_count, recipe.ops.size())
 	for i in count:
@@ -112,10 +118,10 @@ static func run(recipe: BitKilnRecipe, op_count := -1) -> Array[BitKilnContext]:
 ## Runs the recipe and saves its outputs.
 static func bake(recipe: BitKilnRecipe) -> Result:
 	var result := Result.new()
-	if recipe.source == null:
-		result.errors.append("No source image.")
+	var source_path := recipe.get_naming_path()
+	if source_path.is_empty():
+		result.errors.append("Save the recipe first: without a source image, outputs are named after the recipe.")
 		return result
-	var source_path := recipe.source.resource_path
 	var contexts := run(recipe)
 	if contexts.is_empty():
 		result.errors.append("Couldn't read the source image %s." % source_path)

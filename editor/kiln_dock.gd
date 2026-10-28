@@ -214,7 +214,7 @@ func _show_recipe(recipe: BitKilnRecipe) -> void:
 	_bake.disabled = recipe == null
 	if recipe == null:
 		_preview.set_images(null, null, null, Vector2i.ONE, Vector2i.ONE, true)
-		_placeholder.text = "Select a recipe, or right-click an image in the FileSystem dock and choose New BitKiln Recipe."
+		_placeholder.text = "Select a recipe, or right-click an image in the FileSystem dock and choose New BitKiln Recipe (or a folder for a blank canvas to draw on)."
 		_placeholder.visible = true
 		_info.text = ""
 		_update_status()
@@ -233,8 +233,7 @@ func _update_preview(refit := false) -> void:
 	var elapsed := (Time.get_ticks_usec() - started) / 1000.0
 	if _contexts.is_empty():
 		_preview.set_images(null, null, null, Vector2i.ONE, Vector2i.ONE, true)
-		_placeholder.text = "Choose a source image for this recipe in the Inspector." if _recipe.source == null \
-			else "Couldn't read %s." % _recipe.source.resource_path
+		_placeholder.text = "Couldn't read %s." % _recipe.source.resource_path
 		_placeholder.visible = true
 		_info.text = ""
 		return

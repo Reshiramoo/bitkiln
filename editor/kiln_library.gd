@@ -110,7 +110,7 @@ func on_resources_reimported(paths: PackedStringArray) -> void:
 		if _cascade.has(recipe_path):
 			continue
 		var recipe := load_recipe(recipe_path)
-		if recipe == null or not recipe.auto_bake or recipe.source == null:
+		if recipe == null or not recipe.auto_bake:
 			continue
 		for dependency in dependencies(recipe):
 			if changed.has(dependency):
