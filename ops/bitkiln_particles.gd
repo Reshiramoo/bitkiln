@@ -49,6 +49,7 @@ enum Blend {
 @export_range(0.0, 500.0, 0.5, "or_greater") var rate := 20.0
 ## Extra particles all at once: x = when (0–1 of [member duration]), y = how many.
 @export var bursts := PackedVector2Array()
+## Where particles are born.
 @export var emitter := Emitter.POINT
 ## Radius (circle, ring), width and height (rectangle) or length (line), in pixels.
 @export var emitter_size := Vector2(4.0, 4.0)
@@ -76,6 +77,7 @@ enum Blend {
 @export var swirl := 0.0
 
 @export_group("Look")
+## How each particle is drawn.
 @export var shape := Shape.CIRCLE
 ## Size at birth, in pixels.
 @export_range(0.0, 32.0, 0.5, "or_greater", "suffix:px") var size_start := 3.0
@@ -88,12 +90,16 @@ enum Blend {
 ## Color over each particle's life, left (birth) to right (death); its alpha fades
 ## particles. Empty = white fading out.
 @export var colors: Gradient
+## Colors change in this many steps over a particle's life instead of blending smoothly,
+## so the sheet keeps a small palette; 0 = smooth.
+@export_range(0, 16, 1) var color_steps := 5
 ## For streaks: how far back the line reaches, in seconds of movement.
 @export_range(0.0, 1.0, 0.005, "suffix:s") var streak := 0.05
 ## For the Sprite shape: a sheet of frames played over each particle's life.
 @export var sprite: Texture2D
 ## For the Sprite shape: columns and rows of [member sprite].
 @export var sprite_frames := Vector2i.ONE
+## How particles combine with what's behind them.
 @export var blend := Blend.NORMAL
 ## Fades drop pixels in an ordered pattern; off, they turn half transparent.
 @export var dither_fades := true
@@ -119,7 +125,10 @@ func _apply(context: BitKilnContext) -> void:
 		for particle: Array in snapshots[index]:
 			# [x, y, vx, vy, age, life, id]
 			var age_ratio: float = particle[4] / particle[5]
-			var color := gradient.sample(age_ratio)
+			var color_time := age_ratio
+			if color_steps > 0:
+				color_time = (minf(floorf(age_ratio * color_steps), color_steps - 1) + 0.5) / color_steps
+			var color := gradient.sample(color_time)
 			if color.a <= 0.0:
 				continue
 			var rng := RandomNumberGenerator.new()
@@ -349,7 +358,7 @@ static func make_preset(preset: String) -> Dictionary:
 		"emitter_size": Vector2(4, 4), "emitter_offset": Vector2.ZERO, "lifetime": 1.0, "lifetime_random": 0.3,
 		"direction": -90.0, "spread": 40.0, "speed": Vector2(8, 18), "gravity": Vector2.ZERO, "drag": 0.0,
 		"radial_accel": 0.0, "swirl": 0.0, "shape": Shape.CIRCLE, "size_start": 3.0, "size_end": 1.0, "size_curve": null,
-		"size_random": 0.2, "colors": null, "streak": 0.05, "blend": Blend.NORMAL, "dither_fades": true,
+		"size_random": 0.2, "colors": null, "color_steps": 5, "streak": 0.05, "blend": Blend.NORMAL, "dither_fades": true,
 	}
 	var values := {}
 	match preset:

@@ -18,6 +18,8 @@ don't need the plugin, and the original art is never touched.
 - **Animation**: turn a still sprite into an animated sheet with juice effects (squash and
   stretch, hops, shakes, wobbles, spins, waves, flashes, fades, dissolves, afterimages) and
   ready-made presets; play it in the dock and export GIFs.
+- **Particles**: fire, smoke, sparks, explosions, magic, weather and more, simulated and drawn
+  as pixel art, deterministic and seamlessly looping, with presets.
 - **Sprite sheets**: frame-grid guessing, repacking, and `SpriteFrames` for AnimatedSprite2D.
 - **Generators** for making art from nothing: pixel-perfect shapes, animated FX sheets
   (sparkles, impacts, smoke, slashes, orbs, shockwaves), seeded random sprites, tileable noise
@@ -49,6 +51,7 @@ don't need the plugin, and the original art is never touched.
   - [Sprite sheets](#sprite-sheets)
   - [Baking a material](#baking-a-material)
 - [Animation](#animation)
+- [Particles](#particles)
 - [Generators](#generators)
   - [Shapes](#shapes)
   - [FX sheets](#fx-sheets)
@@ -188,6 +191,7 @@ no longer writes are listed in the log for you to delete.
 | [BitKilnMaterial](docs/classes/BitKilnMaterial.md) | Renders the image through a CanvasItem material (see [Baking a material](#baking-a-material)). |
 | **Animation** | |
 | [BitKilnAnimate](docs/classes/BitKilnAnimate.md) | Turns each frame into an animation from juice effects (see [Animation](#animation)). |
+| [BitKilnParticles](docs/classes/BitKilnParticles.md) | Simulates and draws particles across the frames (see [Particles](#particles)). |
 | **Generators** | |
 | [BitKilnShape](docs/classes/BitKilnShape.md) | Pixel-perfect ellipses, rectangles, polygons, stars and lines (see [Shapes](#shapes)). |
 | [BitKilnFxSheet](docs/classes/BitKilnFxSheet.md) | Animated effects across the frames (see [FX sheets](#fx-sheets)). |
@@ -353,6 +357,29 @@ animate with the colors.
 step: Hit Flash, Damage Blink, Idle Bob, Breathe, Jump, Collect, Pulse, Wobble, Jelly, Spin, Shake,
 Teleport and Death Dissolve. Add a Sprite Frames output to play the result in the game, or a GIF
 output to share it.
+
+## Particles
+
+[BitKilnParticles](docs/classes/BitKilnParticles.md) simulates particles and draws them across the
+frames, like Pixel FX Designer, as part of a recipe. Use it on a blank canvas
+("New BitKiln Canvas") with the frames set to the frame count (10×1), or over a sprite (a torch's
+flame, a potion's bubbles). Each frame shows the particles at its moment of **Duration**.
+
+| Group | Settings |
+|---|---|
+| **Timing** | **Duration**, **Loop**, **Substeps** (smoother fast particles), **Seed**. |
+| **Emission** | **Rate** per second, **Bursts** (when, how many), **Emitter** (point, circle, ring, rectangle, line), its size and offset. |
+| **Motion** | **Lifetime** and its variation, **Direction** and **Spread**, **Speed** range, **Gravity**, **Drag**, **Radial Accel** (push or pull), **Swirl**. |
+| **Look** | **Shape** (pixel, circle, square, diamond, star, streak trailing the movement, or a **Sprite** sheet played over each particle's life), size from **Size Start** to **Size End** along a **Size Curve**, **Colors** over life (a Gradient; its alpha fades), **Color Steps**, **Blend** (normal or additive), **Dither Fades**, **Palette**. |
+
+The same settings always give the same sheet. With **Loop**, emission repeats exactly every
+Duration and the simulation is warmed up first, so the last frame flows into the first, with no
+pop when the animation wraps. Without it, the effect starts empty: good for bursts. Particles snap to whole
+pixels, colors change in **Color Steps** bands over their life, and fades drop pixels in an
+ordered pattern, so a sheet stays in a handful of colors.
+
+**Particle Presets**, a menu on the op in the Inspector, loads Fire, Smoke, Sparks, Explosion,
+Magic, Dust, Rain, Snow, Confetti or Bubbles (tuned for 32×32 frames) in one undoable step.
 
 ## Generators
 
@@ -525,6 +552,7 @@ returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPale
 | [BitKilnOutline](docs/classes/BitKilnOutline.md), [BitKilnShadow](docs/classes/BitKilnShadow.md), [BitKilnGlow](docs/classes/BitKilnGlow.md), [BitKilnBlur](docs/classes/BitKilnBlur.md), [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md), [BitKilnShade](docs/classes/BitKilnShade.md) | Edge and light ops. |
 | [BitKilnPaletteSwap](docs/classes/BitKilnPaletteSwap.md), [BitKilnQuantize](docs/classes/BitKilnQuantize.md), [BitKilnReduce](docs/classes/BitKilnReduce.md), [BitKilnAdjust](docs/classes/BitKilnAdjust.md), [BitKilnGradientMap](docs/classes/BitKilnGradientMap.md), [BitKilnMaterial](docs/classes/BitKilnMaterial.md) | Color ops. |
 | [BitKilnAnimate](docs/classes/BitKilnAnimate.md), [BitKilnMotion](docs/classes/BitKilnMotion.md) | Animation. |
+| [BitKilnParticles](docs/classes/BitKilnParticles.md) | Particles. |
 | [BitKilnShape](docs/classes/BitKilnShape.md), [BitKilnFxSheet](docs/classes/BitKilnFxSheet.md), [BitKilnRandomSprite](docs/classes/BitKilnRandomSprite.md), [BitKilnNoise](docs/classes/BitKilnNoise.md), [BitKilnRamp](docs/classes/BitKilnRamp.md) | Generators. |
 | [BitKilnAutotile](docs/classes/BitKilnAutotile.md) | The autotile expander. |
 | [BitKilnBaker](docs/classes/BitKilnBaker.md), [BitKilnBaker.Result](docs/classes/BitKilnBaker.Result.md) | Runs recipes and writes their outputs. |
