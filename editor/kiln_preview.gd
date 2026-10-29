@@ -1,8 +1,9 @@
 @tool
 extends Control
 ## Shows a recipe's result at whole-number zoom on a checkerboard: the result, the source,
-## or both side by side, with an optional frame grid. In lit mode the result is shaded by
-## its normal map with a light that follows the mouse.
+## or both side by side, with an optional frame grid, as a whole sheet or one frame at a
+## time (for playing animations). In lit mode the result is shaded by its normal map with a
+## light that follows the mouse.
 
 enum View { RESULT, SOURCE, SIDE_BY_SIDE }
 
@@ -14,7 +15,7 @@ const MAGNIFY_STEP := 1.2 # pinch this much for one zoom step
 const LIT_SHADER := """
 shader_type canvas_item;
 uniform sampler2D normal_map : filter_nearest;
-uniform vec2 light_uv = vec2(0.25, 0.25);
+uniform vec2 light_uv = vec2(0.25, 0.25); // in the whole texture's UV, even when one frame is shown
 uniform vec2 texture_size = vec2(16.0);
 uniform float light_height = 12.0;
 uniform float ambient = 0.3;
@@ -47,6 +48,11 @@ var zoom := 4:
 		zoom = clampi(value, 1, MAX_ZOOM)
 		_layout()
 		zoom_changed.emit(zoom)
+## The frame shown (counted row by row from 0), or -1 for the whole sheet.
+var frame := -1:
+	set(value):
+		frame = value if value < get_frame_count() else -1
+		_apply_frame()
 
 var _source: Texture2D
 var _result: Texture2D
@@ -62,6 +68,7 @@ var _overlay := Control.new()
 var _lit_material := ShaderMaterial.new()
 var _auto_fit := true # fit on every resize until the user zooms or pans
 var _source_scale := 1 # the source is drawn this much bigger, to match a scaled-up result
+var _region := Rect2(0.0, 0.0, 1.0, 1.0) # the frame shown, in the result's UV
 
 
 func _init() -> void:
@@ -102,8 +109,14 @@ func set_images(source: Texture2D, result: Texture2D, normal: Texture2D, source_
 			_source_scale = int(ratio.x)
 	if refit:
 		_auto_fit = true
-	_update_material()
-	_layout()
+	if frame >= get_frame_count():
+		frame = -1
+	_apply_frame()
+
+
+## Frames in the result sheet.
+func get_frame_count() -> int:
+	return _result_frames.x * _result_frames.y if _result != null else 0
 
 
 ## Zooms in or out by [param steps]; stops fitting to the panel's size.
@@ -182,7 +195,7 @@ func _gui_input(event: InputEvent) -> void:
 			_layout()
 		elif lit and _result_rect.visible and _result_rect.size.x > 0.0:
 			var uv := (motion.position - _result_rect.position) / _result_rect.size
-			_lit_material.set_shader_parameter(&"light_uv", uv)
+			_lit_material.set_shader_parameter(&"light_uv", _region.position + uv * _region.size)
 
 
 func _draw() -> void:
@@ -222,7 +235,7 @@ func _draw_overlay() -> void:
 	var color := Color(1.0, 0.6, 0.3, 0.6)
 	for pair: Array in [[_source_rect, _source_frames], [_result_rect, _result_frames]]:
 		var rect: TextureRect = pair[0]
-		var frames: Vector2i = pair[1]
+		var frames: Vector2i = pair[1] if frame < 0 else Vector2i.ONE
 		if not rect.visible or rect.texture == null:
 			continue
 		var area := Rect2(rect.position, rect.size)
@@ -239,7 +252,7 @@ func _content_size(at_zoom: int) -> Vector2:
 	var shown := _shown()
 	var total := Vector2.ZERO
 	for texture: Texture2D in shown:
-		var s := Vector2(texture.get_size()) * at_zoom * (_source_scale if texture == _source else 1)
+		var s := Vector2(texture.get_size()) * at_zoom * (_source_scale if texture == _source_rect.texture else 1)
 		total.x += s.x
 		total.y = maxf(total.y, s.y)
 	if shown.size() > 1:
@@ -249,11 +262,39 @@ func _content_size(at_zoom: int) -> Vector2:
 
 func _shown() -> Array[Texture2D]:
 	var shown: Array[Texture2D] = []
-	if view != View.RESULT and _source != null:
-		shown.append(_source)
-	if view != View.SOURCE and _result != null:
-		shown.append(_result)
+	if view != View.RESULT and _source_rect.texture != null:
+		shown.append(_source_rect.texture)
+	if view != View.SOURCE and _result_rect.texture != null:
+		shown.append(_result_rect.texture)
 	return shown
+
+
+## Shows the whole sheets, or frame [member frame] of each (of the source too when it has
+## frames: the same frame number, wrapping around).
+func _apply_frame() -> void:
+	_region = Rect2(0.0, 0.0, 1.0, 1.0)
+	if frame < 0 or _result == null:
+		_source_rect.texture = _source
+		_result_rect.texture = _result
+	else:
+		_result_rect.texture = _frame_texture(_result, _result_frames, frame)
+		var size_uv := Vector2.ONE / Vector2(_result_frames)
+		_region = Rect2(Vector2(frame % _result_frames.x, frame / _result_frames.x) * size_uv, size_uv)
+		var source_count := _source_frames.x * _source_frames.y
+		if _source == null or source_count <= 1:
+			_source_rect.texture = _source
+		else:
+			_source_rect.texture = _frame_texture(_source, _source_frames, frame % source_count)
+	_update_material()
+	_layout()
+
+
+static func _frame_texture(sheet: Texture2D, grid: Vector2i, index: int) -> AtlasTexture:
+	var size := Vector2(sheet.get_size()) / Vector2(grid)
+	var atlas := AtlasTexture.new()
+	atlas.atlas = sheet
+	atlas.region = Rect2(Vector2(index % grid.x, index / grid.x) * size, size)
+	return atlas
 
 
 func _layout() -> void:
@@ -287,5 +328,5 @@ func _update_material() -> void:
 		_lit_material.set_shader_parameter(&"normal_map", _normal)
 		var tex_size := _result.get_size()
 		_lit_material.set_shader_parameter(&"texture_size", tex_size)
-		var frame := tex_size / Vector2(_result_frames)
-		_lit_material.set_shader_parameter(&"light_height", maxf(frame.x, frame.y) * 0.5)
+		var frame_px := tex_size / Vector2(_result_frames)
+		_lit_material.set_shader_parameter(&"light_height", maxf(frame_px.x, frame_px.y) * 0.5)

@@ -32,6 +32,13 @@ var _ops: OptionButton
 var _grid: Button
 var _zoom_label: Label
 var _info: Label
+var _play_bar: HBoxContainer
+var _animate: Button
+var _play: Button
+var _frame_slider: HSlider
+var _frame_label: Label
+var _fps: SpinBox
+var _play_timer := Timer.new()
 var _preview: Preview
 var _placeholder: Label
 var _bake: Button
@@ -151,12 +158,100 @@ func _build_preview() -> Control:
 	_placeholder.modulate = Color(1, 1, 1, 0.6)
 	stack.add_child(_placeholder)
 
+	box.add_child(_build_play_bar())
 	_info = Label.new()
 	_info.modulate = Color(1, 1, 1, 0.7)
 	_info.clip_text = true
 	box.add_child(_info)
 	_zoom_label.text = "%d×" % _preview.zoom
 	return box
+
+
+## Animation controls: one frame at a time, play, scrub, frames per second.
+func _build_play_bar() -> Control:
+	_play_bar = HBoxContainer.new()
+	_play_bar.visible = false
+	_animate = Button.new()
+	_animate.icon = _icon("Animation")
+	_animate.toggle_mode = true
+	_animate.flat = true
+	_animate.tooltip_text = "Show one frame at a time, to play the sheet as an animation"
+	_animate.toggled.connect(func(on: bool) -> void:
+		_preview.frame = int(_frame_slider.value) if on else -1
+		_set_playing(on))
+	_play_bar.add_child(_animate)
+	_play = Button.new()
+	_play.icon = _icon("Play")
+	_play.toggle_mode = true
+	_play.flat = true
+	_play.tooltip_text = "Play / pause"
+	_play.toggled.connect(func(on: bool) -> void:
+		if on and not _animate.button_pressed:
+			_animate.button_pressed = true # plays too
+		else:
+			_set_playing(on))
+	_play_bar.add_child(_play)
+	_add_tool_button(_play_bar, "PagePrevious", "Previous frame", func() -> void: _step_frame(-1))
+	_add_tool_button(_play_bar, "PageNext", "Next frame", func() -> void: _step_frame(1))
+	_frame_slider = HSlider.new()
+	_frame_slider.step = 1.0
+	_frame_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_frame_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_frame_slider.value_changed.connect(func(value: float) -> void:
+		_frame_label.text = "%d / %d" % [int(value) + 1, int(_frame_slider.max_value) + 1]
+		if _animate.button_pressed:
+			_preview.frame = int(value))
+	_play_bar.add_child(_frame_slider)
+	_frame_label = Label.new()
+	_frame_label.custom_minimum_size.x = 56.0
+	_frame_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_play_bar.add_child(_frame_label)
+	_fps = SpinBox.new()
+	_fps.min_value = 1.0
+	_fps.max_value = 60.0
+	_fps.value = 10.0
+	_fps.suffix = "fps"
+	_fps.tooltip_text = "Playback speed"
+	_fps.value_changed.connect(func(value: float) -> void: _play_timer.wait_time = 1.0 / value)
+	_play_bar.add_child(_fps)
+	_play_timer.wait_time = 0.1
+	_play_timer.timeout.connect(func() -> void: _step_frame(1))
+	add_child(_play_timer)
+	return _play_bar
+
+
+func _set_playing(on: bool) -> void:
+	_play.set_pressed_no_signal(on)
+	_play.icon = _icon("Pause" if on else "Play")
+	if on and _animate.button_pressed:
+		_play_timer.start()
+	else:
+		_play_timer.stop()
+
+
+func _step_frame(step: int) -> void:
+	var count := int(_frame_slider.max_value) + 1
+	if count <= 1:
+		return
+	if not _animate.button_pressed:
+		_animate.set_pressed_no_signal(true)
+	_frame_slider.value = posmod(int(_frame_slider.value) + step, count)
+	_preview.frame = int(_frame_slider.value)
+
+
+## Shows the play bar for sheets, keeping the frame shown inside the new frame count.
+func _update_play_bar() -> void:
+	var count := _preview.get_frame_count()
+	_play_bar.visible = count > 1
+	if count <= 1:
+		_animate.button_pressed = false
+		_frame_slider.max_value = 0.0
+		return
+	_frame_slider.max_value = count - 1
+	_frame_slider.value = mini(int(_frame_slider.value), count - 1)
+	_frame_label.text = "%d / %d" % [int(_frame_slider.value) + 1, count]
+	if _animate.button_pressed:
+		_preview.frame = int(_frame_slider.value)
 
 
 func _build_side() -> Control:
@@ -247,6 +342,12 @@ func refresh_list() -> void:
 
 func _show_recipe(recipe: BitKilnRecipe) -> void:
 	_recipe = recipe
+	if recipe != null:
+		# Play at the speed of the recipe's animation, if it has a Sprite Frames output.
+		for output in recipe.outputs:
+			if output != null and output.kind == BitKilnOutput.Kind.SPRITE_FRAMES:
+				_fps.value = output.fps
+				break
 	_signature = BitKilnBaker.edit_signature(recipe) if recipe != null else ""
 	_contexts.clear()
 	_variant.clear()
@@ -256,6 +357,7 @@ func _show_recipe(recipe: BitKilnRecipe) -> void:
 	_bake.disabled = recipe == null
 	if recipe == null:
 		_preview.set_images(null, null, null, Vector2i.ONE, Vector2i.ONE, true)
+		_update_play_bar()
 		_source_pick.visible = false
 		_placeholder.text = "Select a recipe, or right-click an image in the FileSystem dock and choose New BitKiln Recipe (or a folder for a blank canvas to draw on)."
 		_placeholder.visible = true
@@ -282,6 +384,7 @@ func _update_preview(refit := false) -> void:
 	var elapsed := (Time.get_ticks_usec() - started) / 1000.0
 	if _contexts.is_empty():
 		_preview.set_images(null, null, null, Vector2i.ONE, Vector2i.ONE, true)
+		_update_play_bar()
 		_placeholder.text = "Couldn't read %s." % _recipe.get_naming_path(source_index)
 		_placeholder.visible = true
 		_info.text = ""
@@ -308,6 +411,7 @@ func _update_preview(refit := false) -> void:
 	_preview.view = _view.selected
 	_preview.set_images(ImageTexture.create_from_image(source) if source != null else null, shown.to_texture(),
 		normal.to_texture() if normal != null else null, _source_grid(source), context.frames, refit)
+	_update_play_bar()
 
 	var notes := PackedStringArray()
 	notes.append("%d×%d" % [context.width, context.height])
