@@ -8,7 +8,7 @@ var current_recipe: Callable # () -> BitKilnRecipe: the recipe shown in the BitK
 
 
 func _can_handle(object: Object) -> bool:
-	return object is BitKilnRecipe or object is BitKilnOutput or object is BitKilnAnimate
+	return object is BitKilnRecipe or object is BitKilnOutput or object is BitKilnAnimate or object is BitKilnParticles
 
 
 ## A menu that replaces [param target]'s settings with one of [param names]' presets.
@@ -34,6 +34,9 @@ func _add_preset_menu(target: Object, names: PackedStringArray, make: Callable, 
 func _parse_begin(object: Object) -> void:
 	if object is BitKilnAnimate:
 		_add_preset_menu(object, BitKilnAnimate.preset_names(), BitKilnAnimate.make_preset, "Animation Presets")
+		return
+	if object is BitKilnParticles:
+		_add_preset_menu(object, BitKilnParticles.preset_names(), BitKilnParticles.make_preset, "Particle Presets")
 		return
 	var output := object as BitKilnOutput
 	if output == null:
