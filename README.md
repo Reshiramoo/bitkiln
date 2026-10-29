@@ -4,8 +4,9 @@ Pixel art plugin for Godot 4.6+: modify, bake and create pixel sprites inside th
 Effects stack non-destructively on a source image and bake to plain PNGs, so exported games
 don't need the plugin, and the original art is never touched.
 
-- **Recipes** instead of edited copies: a source image, a stack of ops and the files to write.
-  Change the source in Aseprite and the recipe bakes again by itself.
+- **Recipes** instead of edited copies: source images, a stack of ops and the files to write.
+  One recipe can serve a whole set of sprites, and write several versions of each. Change a
+  source in Aseprite and the recipe bakes again by itself.
 - **Pixel-art ops**: outlines (including selective outlines), drop and long shadows, glows in
   crisp rings, blurs snapped to a few alpha levels, palette swaps that make one variant per
   palette, quantizing with dithering, color reduction, gradient maps, and masks to limit any op
@@ -33,6 +34,7 @@ don't need the plugin, and the original art is never touched.
 - [Recipes](#recipes)
   - [Frames](#frames)
   - [Outputs](#outputs)
+  - [Where baked files go](#where-baked-files-go)
 - [Ops](#ops)
   - [Masks](#masks)
   - [Palettes and variants](#palettes-and-variants)
@@ -74,9 +76,13 @@ don't need the plugin, and the original art is never touched.
    `hero_kiln.tres` next to `hero.png` and opens it in the Inspector and the BitKiln dock.
 2. In the Inspector, add ops to **Ops**: for example a **BitKilnPad** (room for the outline), then
    a **BitKilnOutline**. The dock's preview follows every change.
-3. Click **Bake** in the dock. The recipe writes `hero_baked.png` next to the source.
-4. Use `hero_baked.png` in your game like any other texture. When you change `hero.png`, the
+3. Click **Bake** in the dock. The recipe writes `baked/<folder>/hero/hero.png` (see
+   [Where baked files go](#where-baked-files-go)); **Outputs** next to Bake opens it.
+4. Use the baked file in your game like any other texture. When you change `hero.png`, the
    recipe bakes again by itself.
+
+Select several images and choose **New Shared BitKiln Recipe** for one recipe that bakes them all
+the same way.
 
 To make art from nothing, right-click a folder → **New BitKiln Canvas** instead: a recipe without
 a source, starting from a blank canvas for [generators](#generators) to draw on.
@@ -87,15 +93,17 @@ A [BitKilnRecipe](docs/classes/BitKilnRecipe.md) is a resource with:
 
 | Property | Meaning |
 |---|---|
-| `source` | The image to start from. BitKiln reads its file directly, so import settings (compression, mipmaps) don't change the pixels. Leave it empty to start from a blank canvas. |
+| `sources` | The images to start from. Each goes through the same ops and gets its own files. BitKiln reads their files directly, so import settings (compression, mipmaps) don't change the pixels. Leave it empty to start from a blank canvas. |
 | `frames` | Columns and rows of frames, for sprite sheets (see [Frames](#frames)). |
+| `auto_frames` | Guess each source's frame grid instead, for sources with different layouts. |
 | `canvas_size` | Without a source: the size of one blank frame. |
 | `ops` | [BitKilnOp](docs/classes/BitKilnOp.md)s, applied top to bottom. Each has an **Enabled** switch, to compare with and without it. |
 | `outputs` | [BitKilnOutput](docs/classes/BitKilnOutput.md)s: the files to write when baked. |
 | `auto_bake` | Bake again whenever the source, or a palette an op uses, is reimported. |
 
 Recipes are ordinary `.tres` files: keep them next to the art, commit them, duplicate them as
-starting points for similar sprites. A recipe's source can be another recipe's output, to chain them.
+starting points for similar sprites. A recipe's source can be another recipe's output, to chain
+them. Recipes from before `sources` existed (with a single `source`) load into it.
 
 ### Frames
 
@@ -117,13 +125,35 @@ changes every frame by the same amount so the grid stays regular.
 | **Sprite Frames** | A `SpriteFrames` `.tres` for an AnimatedSprite2D, cut from the Color output: one animation, or one per row (named, with fps and looping), leaving out empty cells. See [Sprite sheets](#sprite-sheets). |
 | **Tile Set** | A `TileSet` `.tres` with the Color output as an atlas, one tile per non-empty frame; after an Autotile op, with a terrain set up for painting. See [Autotiles](#autotiles). |
 
-An output's `path` can use `{dir}` (the source's folder), `{name}` (the source's file name
-without extension), `{recipe}` (the recipe's file name) and `{variant}` (an underscore and the
-variant's name, or nothing). Without a source, `{dir}` and `{name}` come from the recipe itself,
-minus a `_kiln` suffix (`spark_kiln.tres` bakes `spark_baked.png`). The default is
-`{dir}/{name}_baked{variant}.png`. A recipe never
+An output's `path` can use `{out}` (where the project's [layout](#where-baked-files-go) puts
+this source's files, without extension), `{dir}` (the source's folder), `{name}` (the source's
+file name without extension), `{recipe}` (the recipe's file name) and `{variant}` (an underscore
+and the variant's name, or nothing). Without a source, `{dir}` and `{name}` come from the recipe
+itself, minus a `_kiln` suffix (`spark_kiln.tres` bakes `spark.png`). The default is
+`{out}{variant}.png`. A recipe never
 overwrites its own source, and files whose bytes didn't change aren't rewritten (so they don't
 reimport for nothing).
+
+Each output has an **Ops Used by This Output** checklist in the Inspector. Uncheck ops to leave
+them out of that output: with a second Color output at `{out}{variant}_plain.png` and the glow
+unchecked, one recipe writes every sprite with and without its glow. Outputs that leave out the
+same ops share one run. A Canvas Texture, Sprite Frames or Tile Set output uses the Color (and
+Normal) output with the same ops. The dock's ops menu can preview **As Output N**.
+
+### Where baked files go
+
+**Project Settings → BitKiln → Output → Layout** decides where `{out}` points:
+
+| Layout | `res://art/hero.png` bakes to | Good for |
+|---|---|---|
+| **Separate Folder** (default) | `res://baked/art/hero/hero.png` | Art folders stay clean; one folder per source; easy to ignore in version control and rebake in CI. Set the folder in **Output → Folder**. |
+| **Folder per Source** | `res://art/hero_baked/hero.png` | Outputs stay beside the art they come from, grouped per source. |
+| **Next to Source** | `res://art/hero_baked.png` | Few files per source, everything in one folder. |
+
+Change it whenever you like: on its next bake, each recipe moves the files it wrote before to the
+new place, together with their import settings and UIDs, so scenes and resources that use them
+keep working. The same happens when an output's path or a source's name changes. Files a recipe
+no longer writes are listed in the log for you to delete.
 
 ## Ops
 
@@ -357,14 +387,15 @@ The **BitKiln** dock (bottom panel):
 | Area | What it does |
 |---|---|
 | **Recipe list** | Every recipe in the project, with its status: up to date, changed since the last bake, or failed. Filter by name; double-click to inspect. **Bake All Stale** bakes every recipe that isn't up to date. |
-| **Preview** | The selected recipe's result, at whole-number zoom on a checkerboard. Menus pick the variant, the layer (**Color**, **Normal**, **Lit**), the view (**Result**, **Source**, **Side by Side**) and how many ops to apply ("Up to 2: Outline"), to see the stack step by step. Scroll to zoom, drag to pan; the grid button shows frame edges. Size, frame size, color count, warnings and time per run appear underneath. |
-| **Side panel** | **Bake**, the recipe's status, import checks and the bake log. |
+| **Preview** | The selected recipe's result, at whole-number zoom on a checkerboard of whole sprite pixels. Menus pick the source, the variant, the layer (**Color**, **Normal**, **Lit**), the view (**Result**, **Source**, **Side by Side**) and how many ops to apply ("Up to 2: Outline", or "As Output 2"), to see the stack step by step. The wheel or a pinch zooms at the cursor; drag, two-finger scroll or Shift+wheel pans; the grid button shows frame edges. Size, frame size, color count, warnings and time per run appear underneath. |
+| **Side panel** | **Bake**; **Outputs**, which lists the recipe's files to open them (or their folder in your file manager); the recipe's status, import checks and the bake log. |
 
 Inspecting a recipe shows it in the dock. Recipes are edited in the Inspector; the preview follows
-edits, undo and redo.
+every edit (including ones inside ops, gradients and curves), undo and redo.
 
-FileSystem dock: right-click images → **New BitKiln Recipe** (one per image); a folder → **New
-BitKiln Canvas** (a recipe without a source, for generators); recipes → **Bake**.
+FileSystem dock: right-click images → **New BitKiln Recipe** (one per image) or **New Shared
+BitKiln Recipe** (one for all of them); a folder → **New BitKiln Canvas** (a recipe without a
+source, for generators); recipes → **Bake**.
 
 ### Baking and auto bake
 

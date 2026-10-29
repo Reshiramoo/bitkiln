@@ -30,7 +30,9 @@ enum Layout {
 const SETTING_LAYOUT := "bitkiln/output/layout"
 ## Project setting: the folder [constant SEPARATE_FOLDER] uses.
 const SETTING_FOLDER := "bitkiln/output/folder"
+## The layout new projects use.
 const DEFAULT_LAYOUT := Layout.SEPARATE_FOLDER
+## The folder [constant SEPARATE_FOLDER] uses unless the project sets another.
 const DEFAULT_FOLDER := "res://baked"
 
 ## Default [member path] for each [enum Kind].

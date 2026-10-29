@@ -13,8 +13,9 @@ A file a [BitKilnRecipe](BitKilnRecipe.md) writes when baked: a layer saved as a
 | float | [fps](#property-fps) | `10.0` |
 | [Kind](#enum-kind) | [kind](#property-kind) | `COLOR` |
 | bool | [loop](#property-loop) | `true` |
-| String | [path](#property-path) | `"{dir}/{name}_baked{variant}.png"` |
+| String | [path](#property-path) | `"{out}{variant}.png"` |
 | bool | [skip_empty](#property-skip_empty) | `true` |
+| Array[[BitKilnOp](BitKilnOp.md)] | [skip_ops](#property-skip_ops) | `[]` |
 | Color | [terrain_color](#property-terrain_color) | `Color(0.4, 0.75, 0.35, 1)` |
 | String | [terrain_name](#property-terrain_name) | `""` |
 
@@ -23,7 +24,9 @@ A file a [BitKilnRecipe](BitKilnRecipe.md) writes when baked: a layer saved as a
 | Return | Signature |
 |---|---|
 | [BitKilnOutput](BitKilnOutput.md) | [create](#method-create)(output_kind: [Kind](#enum-kind), output_path: String = "") static |
+| String | [out_base](#method-out_base)(source_path: String) static |
 | String | [resolve](#method-resolve)(source_path: String, recipe_path: String, variant: String) |
+| bool | [uses_op](#method-uses_op)(op: [BitKilnOp](BitKilnOp.md)) |
 
 ## Enumerations
 
@@ -43,9 +46,24 @@ A file a [BitKilnRecipe](BitKilnRecipe.md) writes when baked: a layer saved as a
 - **ONE** = `0`: Every frame in one animation, row by row.
 - **PER_ROW** = `1`: One animation per row of frames: walk cycles per direction, for example.
 
+<a id="enum-layout"></a>
+### enum Layout
+
+- **NEXT_TO_SOURCE** = `0`: Beside the source: `art/hero_baked.png`.
+- **FOLDER_PER_SOURCE** = `1`: In a folder beside the source: `art/hero_baked/hero.png`.
+- **SEPARATE_FOLDER** = `2`: Under one folder, mirroring the project's folders, one folder per source: `baked/art/hero/hero.png`.
+
+<a id="enum-bitkilnoutput.layout"></a>
+### enum BitKilnOutput.Layout
+
+- **DEFAULT_LAYOUT** = `2`: The layout new projects use.
+
 ## Constants
 
-- **DEFAULT_PATHS** = `{0: "{dir}/{name}_baked{variant}.png", 1: "{dir}/{name}_baked{variant}_n.png", 2: "{dir}/{name}_lit{variant}.tres", 3: "{dir}/{name}_palette{variant}.png", 4: "{dir}/{name}_frames{variant}.tres", 5: "{dir}/{name}_tiles{variant}.tres"}`: Default [path](#property-path) for each [Kind](https://docs.godotengine.org/en/stable/classes/class_kind.html)(#enum-kind).
+- **SETTING_LAYOUT** = `"bitkiln/output/layout"`: Project setting: the [Layout](https://docs.godotengine.org/en/stable/classes/class_layout.html)(#enum-layout) for `{out}`.
+- **SETTING_FOLDER** = `"bitkiln/output/folder"`: Project setting: the folder [constant SEPARATE_FOLDER] uses.
+- **DEFAULT_FOLDER** = `"res://baked"`: The folder [constant SEPARATE_FOLDER] uses unless the project sets another.
+- **DEFAULT_PATHS** = `{0: "{out}{variant}.png", 1: "{out}{variant}_n.png", 2: "{out}{variant}_lit.tres", 3: "{out}{variant}_palette.png", 4: "{out}{variant}_frames.tres", 5: "{out}{variant}_tiles.tres"}`: Default [path](#property-path) for each [Kind](https://docs.godotengine.org/en/stable/classes/class_kind.html)(#enum-kind).
 
 ## Property Descriptions
 
@@ -85,9 +103,9 @@ Whether the animations loop.
 ---
 
 <a id="property-path"></a>
-### String path = `"{dir}/{name}_baked{variant}.png"`
+### String path = `"{out}{variant}.png"`
 
-Where to save. `{dir}` is the source image's folder, `{name}` its file name without extension (the recipe's folder and name without a source), `{recipe}` the recipe's file name without extension, and `{variant}` an underscore and the variant's name (or nothing for the main image). Without `{variant}`, variants get it before the extension anyway, so they never overwrite each other.
+Where to save. `{out}` is where the project's output layout puts this source's files, without extension (see [Layout](https://docs.godotengine.org/en/stable/classes/class_layout.html)(#enum-layout)). `{dir}` is the source image's folder and `{name}` its file name without extension (without a source, the recipe's folder and name). `{recipe}` is the recipe's file name without extension, and `{variant}` an underscore and the variant's name (or nothing for the main image). Without `{variant}`, variants get it before the extension anyway, so they never overwrite each other.
 
 ---
 
@@ -95,6 +113,13 @@ Where to save. `{dir}` is the source image's folder, `{name}` its file name with
 ### bool skip_empty = `true`
 
 Leave out frames with no visible pixels (the unused cells at the end of a sheet).
+
+---
+
+<a id="property-skip_ops"></a>
+### Array[[BitKilnOp](BitKilnOp.md)] skip_ops = `[]`
+
+Ops this output leaves out: it's written from the result of the other ops. Edited as a checklist in the Inspector. Lets one recipe write several versions of each sprite, say with and without a glow.
 
 ---
 
@@ -119,7 +144,21 @@ An output of `output_kind`, at `output_path` or the default path for that kind.
 
 ---
 
+<a id="method-out_base"></a>
+### String out_base(source_path: String) static
+
+Where the project's output layout puts the files of the source at `source_path`, without extension: `res://baked/art/hero/hero` for `res://art/hero.png`.
+
+---
+
 <a id="method-resolve"></a>
 ### String resolve(source_path: String, recipe_path: String, variant: String)
 
 [path](#property-path) with its placeholders filled in.
+
+---
+
+<a id="method-uses_op"></a>
+### bool uses_op(op: [BitKilnOp](BitKilnOp.md))
+
+Whether this output uses `op` (it isn't in [skip_ops](#property-skip_ops)).
