@@ -1,14 +1,44 @@
 @tool
 extends EditorInspectorPlugin
 ## Recipe helpers in the Inspector: a "Guess Frame Grid" button next to a recipe's Frames,
-## on each output a checklist of the recipe's ops it uses, and preset menus for ops that
-## have presets.
+## on each output a checklist of the recipe's ops it uses, preset menus for ops that have
+## presets, and for ops that animate, how many frames they make and how long those play.
 
 var current_recipe: Callable # () -> BitKilnRecipe: the recipe shown in the BitKiln dock
 
 
 func _can_handle(object: Object) -> bool:
-	return object is BitKilnRecipe or object is BitKilnOutput or object is BitKilnAnimate or object is BitKilnParticles
+	return object is BitKilnRecipe or object is BitKilnOutput or object is BitKilnAnimate or object is BitKilnParticles \
+		or object is BitKilnFxSheet
+
+
+## A note under the property being parsed that keeps itself up to date with [param describe]
+## (() -> String) while it's shown.
+func _add_live_note(describe: Callable, tooltip := "") -> void:
+	var label := Label.new()
+	label.modulate = Color(1, 1, 1, 0.7)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.tooltip_text = tooltip
+	label.mouse_filter = Control.MOUSE_FILTER_PASS
+	label.text = describe.call()
+	var timer := Timer.new()
+	timer.wait_time = 0.25
+	timer.autostart = true
+	timer.timeout.connect(func() -> void: label.text = describe.call())
+	label.add_child(timer)
+	add_custom_control(label)
+
+
+## [param fps] without a needless ".0": "12", "12.5".
+static func fps_text(fps: float) -> String:
+	return str(roundi(fps)) if is_equal_approx(fps, roundf(fps)) else "%.1f" % fps
+
+
+## "Auto: 8 frames = 0.80 s at 10 fps" for an op that animates.
+static func timing_note(op: Variant) -> String:
+	var count: int = op.get_frame_count()
+	var text := "%d frames = %.2f s at %s fps" % [count, op.get_duration(), fps_text(op.get_fps())]
+	return ("Auto: " + text) if op.frame_count == 0 else text
 
 
 ## A menu that replaces [param target]'s settings with one of [param names]' presets.
@@ -73,6 +103,23 @@ func _parse_begin(object: Object) -> void:
 
 func _parse_property(object: Object, _type: Variant.Type, name: String, _hint_type: PropertyHint, _hint_string: String,
 		_usage_flags: int, _wide: bool) -> bool:
+	# Notes go before the property they're parsed with, so these land under Frame Count and Fps.
+	if (object is BitKilnAnimate or object is BitKilnParticles) and name == "loop" \
+			or object is BitKilnFxSheet and name == "timing":
+		var op: Variant = object
+		var tooltip := "Set Frame Count to 0 for Auto: Duration × Fps."
+		if not object is BitKilnAnimate:
+			tooltip += "\nOver a sheet that already has several frames, the op draws on those instead."
+		_add_live_note(func() -> String: return timing_note(op), tooltip)
+		return false
+	var output := object as BitKilnOutput
+	if output != null and name == "loop" and output.kind in [BitKilnOutput.Kind.SPRITE_FRAMES, BitKilnOutput.Kind.GIF]:
+		_add_live_note(func() -> String:
+			if output.fps > 0.0:
+				return "Set Fps to 0 to follow the recipe's animation."
+			var recipe := _recipe_of(output)
+			return "Plays at %s fps, from the recipe's ops." % fps_text(recipe.get_fps(output) if recipe != null else BitKilnRecipe.DEFAULT_FPS))
+		return false
 	var recipe := object as BitKilnRecipe
 	if recipe == null or name != "frames":
 		return false

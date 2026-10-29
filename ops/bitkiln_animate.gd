@@ -4,8 +4,12 @@ class_name BitKilnAnimate
 extends BitKilnOp
 ## Turns a still sprite into an animation: hit flashes, squash and stretch, hops, shakes,
 ## wobbles, spins, waves, fades, dissolves and afterimages, from a stack of
-## [BitKilnMotion] effects. Each frame of the source becomes a row of
-## [member frame_count] frames (so a sheet of poses gets an animation per pose).
+## [BitKilnMotion] effects. Each frame of the source becomes a row of frames (so a sheet
+## of poses gets an animation per pose).
+##
+## How many frames: set how long the animation lasts ([member duration]) and the speed it
+## plays at ([member fps]), and [member frame_count] at Auto works out the count. Sprite
+## Frames and GIF outputs play at the same speed.
 ##
 ## It stays pixel art: movement snaps to whole pixels, rotation and skewing use RotSprite
 ## (no new colors, clean lines), and fades and dissolves remove whole pixels instead of
@@ -17,15 +21,29 @@ enum Layout {
 	STRIP, ## All frames in one row, source frame after source frame.
 }
 
-## Frames in the animation.
-@export_range(2, 64, 1, "or_greater") var frame_count := 8
 ## What happens over the animation, applied in order.
 @export var effects: Array[BitKilnMotion] = []
-## Transparent pixels added on every side of each frame, so the sprite can move and grow.
-@export_range(0, 64, 1, "or_greater", "suffix:px") var margin := 4
+
+@export_group("Timing")
+## How long the animation lasts, in seconds. Hidden when [member frame_count] is set: the
+## length is then the frame count at [member fps].
+@export_range(0.05, 10.0, 0.05, "or_greater", "suffix:s") var duration := 0.8
+## Frames per second the animation is made for. Sprite Frames and GIF outputs play at this
+## speed unless they set their own, and so does the BitKiln dock's preview.
+@export_range(1.0, 60.0, 0.5, "or_greater", "suffix:fps") var fps := 10.0
+## Frames in the animation. 0 = Auto: [member duration] × [member fps], nudged (by up to a
+## quarter) so effects that repeat get the same number of frames every cycle.
+@export_range(0, 64, 1, "or_greater") var frame_count := 0:
+	set(value):
+		frame_count = 0 if value <= 0 else maxi(value, 2)
+		notify_property_list_changed()
 ## The last frame leads back into the first (time stops one frame short of the end).
 ## Off: the last frame is the end of the animation, for one-shots like a death dissolve.
 @export var loop := true
+@export_group("")
+
+## Transparent pixels added on every side of each frame, so the sprite can move and grow.
+@export_range(0, 64, 1, "or_greater", "suffix:px") var margin := 4
 ## How the frames are arranged when the source has several.
 @export var layout := Layout.ROWS
 ## Fades, blinks and afterimages remove whole pixels in an ordered pattern instead of
@@ -33,11 +51,71 @@ enum Layout {
 @export var dither_fades := true
 
 
+func _validate_property(property: Dictionary) -> void:
+	if property.name == "duration" and frame_count > 0:
+		property.usage = PROPERTY_USAGE_STORAGE
+
+
+func get_fps() -> float:
+	return fps
+
+
+## How many frames each source frame becomes: [member frame_count], or with Auto,
+## [member duration] × [member fps] nudged so repeating effects divide evenly.
+func get_frame_count() -> int:
+	if frame_count > 0:
+		return frame_count
+	var raw := maxf(duration * fps, 2.0)
+	var count := roundi(raw)
+	var step := _cycle_step()
+	if step > 1:
+		# A loop shows frames 0…n-1 of n steps; a one-shot shows both ends, n-1 steps.
+		var shift := 0 if loop else 1
+		var even := maxi(roundi((raw - shift) / step), 1) * step + shift
+		if absf(even - raw) <= raw * 0.25:
+			count = even
+	return maxi(count, 2)
+
+
+## How long the animation plays, in seconds, at [member fps].
+func get_duration() -> float:
+	return get_frame_count() / fps
+
+
+## The number of steps the frames should come in multiples of, so every cycle of the effects
+## that repeat over the whole animation gets the same frames; 1 when there are none.
+func _cycle_step() -> int:
+	var step := 1
+	for motion in effects:
+		if motion == null or not motion.enabled or motion.start > 0.001 or motion.end < 0.999:
+			continue
+		var parts := 0.0
+		match motion.effect:
+			BitKilnMotion.Effect.SQUASH, BitKilnMotion.Effect.JUMP, BitKilnMotion.Effect.WOBBLE, BitKilnMotion.Effect.SKEW:
+				parts = motion.cycles
+			BitKilnMotion.Effect.BLINK:
+				parts = motion.cycles * 2.0 # on and off
+		var whole := roundi(parts)
+		if whole < 2 or not is_equal_approx(parts, whole):
+			continue
+		var a := step
+		var b := whole
+		while b != 0:
+			var r := a % b
+			a = b
+			b = r
+		var multiple := step / a * whole
+		if multiple <= 16:
+			step = multiple
+	return step
+
+
 func _apply(context: BitKilnContext) -> void:
 	var source_size := context.frame_size
 	var in_count := context.frames.x * context.frames.y
+	var count := get_frame_count()
 	var out_size := source_size + Vector2i(margin, margin) * 2
-	var grid := Vector2i(frame_count, in_count) if layout == Layout.ROWS else Vector2i(frame_count * in_count, 1)
+	var grid := Vector2i(count, in_count) if layout == Layout.ROWS else Vector2i(count * in_count, 1)
 	var color_out := BitKilnBuffer.create(out_size.x * grid.x, out_size.y * grid.y)
 	var normal_in := context.get_layer(BitKilnContext.NORMAL)
 	var normal_out := BitKilnBuffer.create(color_out.width, color_out.height) if normal_in != null else null
@@ -46,9 +124,9 @@ func _apply(context: BitKilnContext) -> void:
 		var normals := _extract(normal_in, context, f) if normal_in != null else null
 		var bounds := _content_bounds(sprite)
 		var big: BitKilnBuffer = null # the sprite at 8×, made once if a frame needs it
-		for i in frame_count:
-			var t := float(i) / frame_count if loop else float(i) / maxi(frame_count - 1, 1)
-			var index := f * frame_count + i
+		for i in count:
+			var t := float(i) / count if loop else float(i) / maxi(count - 1, 1)
+			var index := f * count + i
 			var cell := Vector2i(index % grid.x, index / grid.x) * out_size
 			# Afterimages first, behind the sprite.
 			for motion in effects:
@@ -58,7 +136,7 @@ func _apply(context: BitKilnContext) -> void:
 				if u < 0.0:
 					continue
 				for g in range(motion.ghosts, 0, -1):
-					var tg := t - float(g * motion.ghost_spacing) / frame_count
+					var tg := t - float(g * motion.ghost_spacing) / count
 					if loop:
 						tg = fposmod(tg, 1.0)
 					elif tg < 0.0:
@@ -312,8 +390,8 @@ static func preset_names() -> PackedStringArray:
 		"Wobble", "Jelly", "Spin", "Shake", "Teleport", "Death Dissolve"])
 
 
-## A ready-made animation: [code]{"frame_count": int, "loop": bool, "margin": int,
-## "effects": Array[BitKilnMotion]}[/code].
+## A ready-made animation: [code]{"duration": float, "frame_count": 0 (Auto), "loop": bool,
+## "margin": int, "effects": Array[BitKilnMotion]}[/code]. It leaves [member fps] as it is.
 static func make_preset(preset: String) -> Dictionary:
 	var M := BitKilnMotion
 	var effects: Array[BitKilnMotion] = []
@@ -411,7 +489,7 @@ static func make_preset(preset: String) -> Dictionary:
 			dissolve.start = 0.1
 			dissolve.color = Color(1.0, 0.6, 0.2)
 			effects = [flash, dissolve]
-	return {"frame_count": count, "loop": looping, "margin": room, "effects": effects}
+	return {"duration": count / 10.0, "frame_count": 0, "loop": looping, "margin": room, "effects": effects}
 
 
 static func _curve(points: Array[Vector2]) -> Curve:

@@ -2,11 +2,11 @@
 
 **Inherits:** [BitKilnOp](BitKilnOp.md)
 
-Draws an animated effect across the frames: sparkles, impact bursts, smoke puffs, slashes, pulsing orbs and shockwave rings. Use it on a recipe without a source, with [BitKilnRecipe.frames](BitKilnRecipe.md#property-frames) set to the number of frames (6×1, 8×1…), and play the result with a Sprite Frames output, a `PocketSpriteVfx` or an AnimatedSprite2D.
+Draws an animated effect across the frames: sparkles, impact bursts, smoke puffs, slashes, pulsing orbs and shockwave rings. Use it on a recipe without a source (a blank canvas), and play the result with a Sprite Frames output, a `PocketSpriteVfx` or an AnimatedSprite2D.
 
 ## Description
 
-Each pixel gets a "heat" from 0 (the hot, bright core) to 1 (the cool, fading edge), colored by [colors](#property-colors) in [color_steps](#property-color_steps) hard steps, so the sheet stays in a small palette.
+How many frames: set how long the effect lasts ([duration](#property-duration)) and the speed it plays at ([fps](#property-fps)), and [frame_count](#property-frame_count) at Auto works out the count. Starting from one frame, the op makes that many frames in a row; over a sheet that already has several frames, it draws on those instead.  Each pixel gets a "heat" from 0 (the hot, bright core) to 1 (the cool, fading edge), colored by [colors](#property-colors) in [color_steps](#property-color_steps) hard steps, so the sheet stays in a small palette.
 
 ## Properties
 
@@ -17,10 +17,21 @@ Each pixel gets a "heat" from 0 (the hot, bright core) to 1 (the cool, fading ed
 | int | [count](#property-count) | `6` |
 | float | [direction](#property-direction) | `-90.0` |
 | bool | [dither](#property-dither) | `false` |
+| float | [duration](#property-duration) | `0.8` |
 | [Effect](#enum-effect) | [effect](#property-effect) | `IMPACT` |
+| float | [fps](#property-fps) | `10.0` |
+| int | [frame_count](#property-frame_count) | `0` |
 | float | [scale](#property-scale) | `0.9` |
 | int | [seed](#property-seed) | `1` |
 | [Curve](https://docs.godotengine.org/en/stable/classes/class_curve.html) | [timing](#property-timing) |  |
+
+## Methods
+
+| Return | Signature |
+|---|---|
+| float | [get_duration](#method-get_duration)() |
+| float | [get_fps](#method-get_fps)() |
+| int | [get_frame_count](#method-get_frame_count)() |
 
 ## Enumerations
 
@@ -71,10 +82,31 @@ Fading pixels pick their band with an ordered pattern, for softer fades.
 
 ---
 
+<a id="property-duration"></a>
+### float duration = `0.8`
+
+Seconds the effect lasts. Hidden when [frame_count](#property-frame_count) is set: the length is then the frame count at [fps](#property-fps).
+
+---
+
 <a id="property-effect"></a>
 ### [Effect](#enum-effect) effect = `IMPACT`
 
 Which effect to draw.
+
+---
+
+<a id="property-fps"></a>
+### float fps = `10.0`
+
+Frames per second the effect is made for. Sprite Frames and GIF outputs play at this speed unless they set their own, and so does the BitKiln dock's preview.
+
+---
+
+<a id="property-frame_count"></a>
+### int frame_count = `0`
+
+Frames to make. 0 = Auto: [duration](#property-duration) × [fps](#property-fps). Ignored over a sheet that already has several frames.
 
 ---
 
@@ -96,3 +128,22 @@ Changes the random placement (sparkles, spikes, puffs).
 ### [Curve](https://docs.godotengine.org/en/stable/classes/class_curve.html) timing
 
 How the effect advances over the frames (0 = first frame, 1 = last). Empty = evenly.
+
+## Method Descriptions
+
+<a id="method-get_duration"></a>
+### float get_duration()
+
+Seconds the frames the op makes cover, playing at [fps](#property-fps).
+
+---
+
+<a id="method-get_fps"></a>
+### float get_fps()
+
+---
+
+<a id="method-get_frame_count"></a>
+### int get_frame_count()
+
+How many frames the op makes from a single frame: [frame_count](#property-frame_count), or with Auto, [duration](#property-duration) × [fps](#property-fps).

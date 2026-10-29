@@ -68,6 +68,12 @@ func _apply(_context: BitKilnContext) -> void:
 	pass
 
 
+## Frames per second the op's animation is made for, which Sprite Frames and GIF outputs
+## play at unless they set their own; 0 for ops that don't animate.
+func get_fps() -> float:
+	return 0.0
+
+
 ## 1 for each pixel of [param context]'s layers inside the mask, 0 outside; empty when
 ## there's no usable mask.
 func mask_pixels(context: BitKilnContext) -> PackedByteArray:

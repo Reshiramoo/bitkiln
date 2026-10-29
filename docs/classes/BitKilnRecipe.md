@@ -26,10 +26,15 @@ Every source goes through the same ops and gets its own files, so one recipe can
 | Return | Signature |
 |---|---|
 | [BitKilnBaker.Result](BitKilnBaker.Result.md) | [bake](#method-bake)() |
+| float | [get_fps](#method-get_fps)(output: [BitKilnOutput](BitKilnOutput.md) = null) |
 | String | [get_naming_path](#method-get_naming_path)(index: int = 0) |
 | int | [get_run_count](#method-get_run_count)() |
 | [Texture2D](https://docs.godotengine.org/en/stable/classes/class_texture2d.html) | [get_source](#method-get_source)(index: int = 0) |
 | Array[[BitKilnContext](BitKilnContext.md)] | [run](#method-run)(op_count: int = -1, source_index: int = 0, skip: Array[[BitKilnOp](BitKilnOp.md)] = []) |
+
+## Constants
+
+- **DEFAULT_FPS** = `10.0`: Frames per second animations play at when nothing sets a speed.
 
 ## Property Descriptions
 
@@ -93,6 +98,13 @@ The images to start from, each baked with the same ops into its own files. Their
 ### [BitKilnBaker.Result](BitKilnBaker.Result.md) bake()
 
 Runs the ops on every source and writes the outputs; see [BitKilnBaker.bake()](BitKilnBaker.md#method-bake).
+
+---
+
+<a id="method-get_fps"></a>
+### float get_fps(output: [BitKilnOutput](BitKilnOutput.md) = null)
+
+Frames per second `output` plays at: its own [BitKilnOutput.fps](BitKilnOutput.md#property-fps) when set, otherwise the fps of the last enabled op that animates ([BitKilnOp.get_fps()](BitKilnOp.md#method-get_fps)) and that the output uses, otherwise 10. Without an output, the speed the ops are made for.
 
 ---
 

@@ -11,6 +11,9 @@ extends Resource
 ## original art. Without sources, ops start from a blank canvas: generators like
 ## [BitKilnShape] draw on it. Baked files are plain PNGs: exported games don't need BitKiln.
 
+## Frames per second animations play at when nothing sets a speed.
+const DEFAULT_FPS := 10.0
+
 ## The images to start from, each baked with the same ops into its own files. Their files
 ## are read directly, so import settings (compression, mipmaps) don't affect the pixels.
 ## Leave it empty to start from a blank canvas of [member canvas_size], for generator ops
@@ -88,6 +91,22 @@ func get_naming_path(index := 0) -> String:
 	if resource_path.is_empty():
 		return ""
 	return resource_path.get_base_dir().path_join(resource_path.get_file().get_basename().trim_suffix("_kiln") + ".tres")
+
+
+## Frames per second [param output] plays at: its own [member BitKilnOutput.fps] when set,
+## otherwise the fps of the last enabled op that animates ([method BitKilnOp.get_fps]) and
+## that the output uses, otherwise 10. Without an output, the speed the ops are made for.
+func get_fps(output: BitKilnOutput = null) -> float:
+	if output != null and output.fps > 0.0:
+		return output.fps
+	var result := DEFAULT_FPS
+	for op in ops:
+		if op == null or not op.enabled or (output != null and not output.uses_op(op)):
+			continue
+		var op_fps := op.get_fps()
+		if op_fps > 0.0:
+			result = op_fps
+	return result
 
 
 ## Runs the ops on source [param source_index] and returns one context per variant; see

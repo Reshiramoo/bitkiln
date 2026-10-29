@@ -73,8 +73,10 @@ const DEFAULT_PATHS := {
 ## Animation names, in order (one per row with Per Row). Missing names are "default" (One)
 ## or "row_0", "row_1"… (Per Row).
 @export var animation_names: PackedStringArray = []
-## Frames per second.
-@export_range(0.1, 120.0, 0.1, "or_greater") var fps := 10.0
+## Frames per second. 0 = the speed the recipe's animation is made for: the fps of its last
+## [BitKilnAnimate], [BitKilnParticles] or [BitKilnFxSheet] this output uses (10 without
+## one). See [method BitKilnRecipe.get_fps].
+@export_range(0.0, 120.0, 0.1, "or_greater", "suffix:fps") var fps := 0.0
 ## Whether the animations loop.
 @export var loop := true
 ## Leave out frames with no visible pixels (the unused cells at the end of a sheet).

@@ -38,6 +38,8 @@ var _play: Button
 var _frame_slider: HSlider
 var _frame_label: Label
 var _fps: SpinBox
+var _length: Label # how long the frames play at the fps box's speed
+var _synced_fps := 0.0 # the recipe's speed the fps box was last set to
 var _play_timer := Timer.new()
 var _preview: Preview
 var _placeholder: Label
@@ -211,9 +213,17 @@ func _build_play_bar() -> Control:
 	_fps.max_value = 60.0
 	_fps.value = 10.0
 	_fps.suffix = "fps"
-	_fps.tooltip_text = "Playback speed"
-	_fps.value_changed.connect(func(value: float) -> void: _play_timer.wait_time = 1.0 / value)
+	_fps.step = 0.5
+	_fps.tooltip_text = "Playback speed. Follows the recipe's animation (its op's or Sprite Frames output's fps); change it here to try another speed."
+	_fps.value_changed.connect(func(value: float) -> void:
+		_play_timer.wait_time = 1.0 / value
+		_update_length())
 	_play_bar.add_child(_fps)
+	_length = Label.new()
+	_length.custom_minimum_size.x = 48.0
+	_length.modulate = Color(1, 1, 1, 0.7)
+	_length.tooltip_text = "How long the frames last at this speed"
+	_play_bar.add_child(_length)
 	_play_timer.wait_time = 0.1
 	_play_timer.timeout.connect(func() -> void: _step_frame(1))
 	add_child(_play_timer)
@@ -250,8 +260,30 @@ func _update_play_bar() -> void:
 	_frame_slider.max_value = count - 1
 	_frame_slider.value = mini(int(_frame_slider.value), count - 1)
 	_frame_label.text = "%d / %d" % [int(_frame_slider.value) + 1, count]
+	_update_length()
 	if _animate.button_pressed:
 		_preview.frame = int(_frame_slider.value)
+
+
+func _update_length() -> void:
+	if _length != null:
+		_length.text = "%.2f s" % ((_frame_slider.max_value + 1.0) / _fps.value)
+
+
+## Sets the fps box to the speed of the recipe's animation when that speed changes, keeping
+## a speed typed in the box until then.
+func _sync_fps() -> void:
+	if _recipe == null:
+		return
+	var animated: BitKilnOutput = null
+	for output in _recipe.outputs:
+		if output != null and output.kind in [BitKilnOutput.Kind.SPRITE_FRAMES, BitKilnOutput.Kind.GIF]:
+			animated = output
+			break
+	var recipe_fps := _recipe.get_fps(animated)
+	if not is_equal_approx(recipe_fps, _synced_fps):
+		_synced_fps = recipe_fps
+		_fps.value = recipe_fps
 
 
 func _build_side() -> Control:
@@ -342,12 +374,7 @@ func refresh_list() -> void:
 
 func _show_recipe(recipe: BitKilnRecipe) -> void:
 	_recipe = recipe
-	if recipe != null:
-		# Play at the speed of the recipe's animation, if it has a Sprite Frames output.
-		for output in recipe.outputs:
-			if output != null and output.kind == BitKilnOutput.Kind.SPRITE_FRAMES:
-				_fps.value = output.fps
-				break
+	_synced_fps = 0.0
 	_signature = BitKilnBaker.edit_signature(recipe) if recipe != null else ""
 	_contexts.clear()
 	_variant.clear()
@@ -379,6 +406,7 @@ func _update_preview(refit := false) -> void:
 	var skip: Array[BitKilnOp] = []
 	if id >= AS_OUTPUT and id - AS_OUTPUT < _recipe.outputs.size() and _recipe.outputs[id - AS_OUTPUT] != null:
 		skip = _recipe.outputs[id - AS_OUTPUT].skip_ops
+	_sync_fps()
 	var started := Time.get_ticks_usec()
 	_contexts = BitKilnBaker.run(_recipe, op_count, source_index, skip)
 	var elapsed := (Time.get_ticks_usec() - started) / 1000.0

@@ -215,7 +215,7 @@ static func _write_outputs(recipe: BitKilnRecipe, outputs: Array[BitKilnOutput],
 		if before_save.is_valid():
 			before_save.call(path, result.files.size())
 		if output.kind == BitKilnOutput.Kind.GIF:
-			_save_bytes(gif_bytes(context, output), path, result)
+			_save_bytes(gif_bytes(context, output, recipe.get_fps(output)), path, result)
 			continue
 		var image := palette_image(context.color) if output.kind == BitKilnOutput.Kind.PALETTE \
 			else context.get_layer(layer).to_image()
@@ -254,7 +254,7 @@ static func _write_outputs(recipe: BitKilnRecipe, outputs: Array[BitKilnOutput],
 					"empty": empty_frames(context),
 					"animations": output.animations,
 					"names": output.animation_names,
-					"fps": output.fps,
+					"fps": recipe.get_fps(output),
 					"loop": output.loop,
 					"skip_empty": output.skip_empty,
 				})
@@ -344,8 +344,9 @@ static func _save_png(image: Image, path: String, result: Result) -> bool:
 	return _save_bytes(image.save_png_to_buffer(), path, result)
 
 
-## [param output]'s animated GIF of [param context]'s frames.
-static func gif_bytes(context: BitKilnContext, output: BitKilnOutput) -> PackedByteArray:
+## [param output]'s animated GIF of [param context]'s frames, at [param fps] frames per second
+## ([member BitKilnOutput.fps] when 0 or less, or 10 if that's 0 too).
+static func gif_bytes(context: BitKilnContext, output: BitKilnOutput, fps := 0.0) -> PackedByteArray:
 	var empty := empty_frames(context) if output.skip_empty else PackedInt32Array()
 	var frames: Array[Image] = []
 	var image := context.color.to_image()
@@ -356,7 +357,9 @@ static func gif_bytes(context: BitKilnContext, output: BitKilnOutput) -> PackedB
 		frames.append(image.get_region(Rect2i(Vector2i(index % context.frames.x, index / context.frames.x) * size, size)))
 	if frames.is_empty():
 		frames.append(image.get_region(Rect2i(Vector2i.ZERO, size)))
-	return BitKilnGif.encode(frames, output.fps, output.loop, output.gif_scale)
+	if fps <= 0.0:
+		fps = output.fps if output.fps > 0.0 else BitKilnRecipe.DEFAULT_FPS
+	return BitKilnGif.encode(frames, fps, output.loop, output.gif_scale)
 
 
 ## Saves [param bytes] unless the file already holds exactly them. True when the file is

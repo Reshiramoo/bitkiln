@@ -3,9 +3,14 @@
 class_name BitKilnFxSheet
 extends BitKilnOp
 ## Draws an animated effect across the frames: sparkles, impact bursts, smoke puffs,
-## slashes, pulsing orbs and shockwave rings. Use it on a recipe without a source, with
-## [member BitKilnRecipe.frames] set to the number of frames (6×1, 8×1…), and play the
-## result with a Sprite Frames output, a [code]PocketSpriteVfx[/code] or an AnimatedSprite2D.
+## slashes, pulsing orbs and shockwave rings. Use it on a recipe without a source (a blank
+## canvas), and play the result with a Sprite Frames output, a [code]PocketSpriteVfx[/code]
+## or an AnimatedSprite2D.
+##
+## How many frames: set how long the effect lasts ([member duration]) and the speed it plays
+## at ([member fps]), and [member frame_count] at Auto works out the count. Starting from
+## one frame, the op makes that many frames in a row; over a sheet that already has several
+## frames, it draws on those instead.
 ##
 ## Each pixel gets a "heat" from 0 (the hot, bright core) to 1 (the cool, fading edge),
 ## colored by [member colors] in [member color_steps] hard steps, so the sheet stays in a
@@ -22,6 +27,24 @@ enum Effect {
 
 ## Which effect to draw.
 @export var effect := Effect.IMPACT
+
+@export_group("Timing")
+## Seconds the effect lasts. Hidden when [member frame_count] is set: the length is then
+## the frame count at [member fps].
+@export_range(0.05, 10.0, 0.05, "or_greater", "suffix:s") var duration := 0.8
+## Frames per second the effect is made for. Sprite Frames and GIF outputs play at this
+## speed unless they set their own, and so does the BitKiln dock's preview.
+@export_range(1.0, 60.0, 0.5, "or_greater", "suffix:fps") var fps := 10.0
+## Frames to make. 0 = Auto: [member duration] × [member fps]. Ignored over a sheet that
+## already has several frames.
+@export_range(0, 64, 1, "or_greater") var frame_count := 0:
+	set(value):
+		frame_count = maxi(value, 0)
+		notify_property_list_changed()
+## How the effect advances over the frames (0 = first frame, 1 = last). Empty = evenly.
+@export var timing: Curve
+@export_group("")
+
 ## From the hot core (left) to the fading edge (right). Its alpha is kept, so a gradient
 ## ending transparent fades out. With Constant interpolation and points at 0, 1/n, 2/n…
 ## ([member color_steps] = n), every band is exactly one of its colors. Empty = white,
@@ -37,13 +60,32 @@ enum Effect {
 @export_range(-360.0, 360.0, 1.0, "suffix:°") var direction := -90.0
 ## Changes the random placement (sparkles, spikes, puffs).
 @export var seed := 1
-## How the effect advances over the frames (0 = first frame, 1 = last). Empty = evenly.
-@export var timing: Curve
 ## Fading pixels pick their band with an ordered pattern, for softer fades.
 @export var dither := false
 
 
+func _validate_property(property: Dictionary) -> void:
+	if property.name == "duration" and frame_count > 0:
+		property.usage = PROPERTY_USAGE_STORAGE
+
+
+func get_fps() -> float:
+	return fps
+
+
+## How many frames the op makes from a single frame: [member frame_count], or with Auto,
+## [member duration] × [member fps].
+func get_frame_count() -> int:
+	return frame_count if frame_count > 0 else maxi(roundi(duration * fps), 1)
+
+
+## Seconds the frames the op makes cover, playing at [member fps].
+func get_duration() -> float:
+	return get_frame_count() / fps
+
+
 func _apply(context: BitKilnContext) -> void:
+	context.repeat_frame(get_frame_count())
 	var size := context.frame_size
 	var total := context.frames.x * context.frames.y
 	var gradient := colors if colors != null else _default_colors()

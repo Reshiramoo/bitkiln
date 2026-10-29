@@ -23,6 +23,7 @@ Ops change a [BitKilnContext](BitKilnContext.md) in place. An op that turns one 
 | Return | Signature |
 |---|---|
 | void | [_apply](#method-_apply)(_context: [BitKilnContext](BitKilnContext.md)) |
+| float | [get_fps](#method-get_fps)() |
 | bool | [is_solid](#method-is_solid)(pixel: int, alpha_threshold: int) static |
 | PackedByteArray | [mask_pixels](#method-mask_pixels)(context: [BitKilnContext](BitKilnContext.md)) |
 | Array[[BitKilnContext](BitKilnContext.md)] | [process](#method-process)(context: [BitKilnContext](BitKilnContext.md)) |
@@ -69,6 +70,13 @@ Work outside the mask instead of inside it.
 ### void _apply(_context: [BitKilnContext](BitKilnContext.md))
 
 Changes `context` in place.
+
+---
+
+<a id="method-get_fps"></a>
+### float get_fps()
+
+Frames per second the op's animation is made for, which Sprite Frames and GIF outputs play at unless they set their own; 0 for ops that don't animate.
 
 ---
 

@@ -136,6 +136,27 @@ func remap_frames(new_frame_size: Vector2i, offset: Vector2i) -> void:
 	source_offset += Vector2(offset)
 
 
+## For ops that animate a still image: turns the single frame into a row of
+## [param count] copies of it, in every layer. Does nothing when there are several frames.
+func repeat_frame(count: int) -> void:
+	if frames != Vector2i.ONE or count <= 1:
+		return
+	for layer_name: StringName in layers:
+		var src: BitKilnBuffer = layers[layer_name]
+		var dst := BitKilnBuffer.create(src.width * count, src.height)
+		var sp := src.pixels
+		var dp := dst.pixels
+		for y in src.height:
+			var src_row := y * src.width
+			for k in count:
+				var dst_row := y * dst.width + k * src.width
+				for x in src.width:
+					dp[dst_row + x] = sp[src_row + x]
+		dst.pixels = dp
+		layers[layer_name] = dst
+	frames = Vector2i(count, 1)
+
+
 ## The source pixel (within one source frame) that the pixel at [param local] (within one
 ## current frame) came from, clamped to the source frame.
 func to_source(local: Vector2i) -> Vector2i:

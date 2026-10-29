@@ -51,6 +51,7 @@ don't need the plugin, and the original art is never touched.
   - [Sprite sheets](#sprite-sheets)
   - [Baking a material](#baking-a-material)
 - [Animation](#animation)
+- [Frame counts and speed](#frame-counts-and-speed)
 - [Particles](#particles)
 - [Generators](#generators)
   - [Shapes](#shapes)
@@ -129,9 +130,9 @@ changes every frame by the same amount so the grid stays regular.
 | **Normal** | The normal map from a [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md), as a PNG. |
 | **Canvas Texture** | A `CanvasTexture` `.tres` pairing the recipe's Color and Normal outputs, with the nearest filter: drop it on a Sprite2D and it reacts to 2D lights. Needs a Color and a Normal output in the same recipe. |
 | **Palette** | Every color of the result, darkest first, as a one-row PNG: a palette for Palette Swap, Quantize or Pocket's shaders. |
-| **Sprite Frames** | A `SpriteFrames` `.tres` for an AnimatedSprite2D, cut from the Color output: one animation, or one per row (named, with fps and looping), leaving out empty cells. See [Sprite sheets](#sprite-sheets). |
+| **Sprite Frames** | A `SpriteFrames` `.tres` for an AnimatedSprite2D, cut from the Color output: one animation, or one per row (named, looping or not), leaving out empty cells. Plays at the speed of the recipe's animation unless **Fps** is set (see [Frame counts and speed](#frame-counts-and-speed)). See [Sprite sheets](#sprite-sheets). |
 | **Tile Set** | A `TileSet` `.tres` with the Color output as an atlas, one tile per non-empty frame; after an Autotile op, with a terrain set up for painting. See [Autotiles](#autotiles). |
-| **GIF** | The frames as an animated GIF (fps, looping, empty frames left out, each pixel scaled up by **Gif Scale**), for sharing outside the game. |
+| **GIF** | The frames as an animated GIF (at the animation's speed or its own **Fps**, looping, empty frames left out, each pixel scaled up by **Gif Scale**), for sharing outside the game. |
 
 An output's `path` can use `{out}` (where the project's [layout](#where-baked-files-go) puts
 this source's files, without extension), `{dir}` (the source's folder), `{name}` (the source's
@@ -326,8 +327,8 @@ that draw outside the sprite need a Pad before it.
 
 [BitKilnAnimate](docs/classes/BitKilnAnimate.md) turns a still sprite into an animated sheet, the
 way tools like Juice FX do, but inside the recipe: outlines, palettes and scalers can come before
-or after it. Each source frame becomes a row of **Frame Count** frames, so a sheet of poses gets
-an animation per pose. **Effects** is a stack of [BitKilnMotion](docs/classes/BitKilnMotion.md)s,
+or after it. Each source frame becomes a row of frames (see [Frame counts and speed](#frame-counts-and-speed)),
+so a sheet of poses gets an animation per pose. **Effects** is a stack of [BitKilnMotion](docs/classes/BitKilnMotion.md)s,
 applied in order:
 
 | Effect | What it does |
@@ -355,19 +356,57 @@ animate with the colors.
 
 **Animation Presets**, a menu on the op in the Inspector, loads a ready-made setup in one undoable
 step: Hit Flash, Damage Blink, Idle Bob, Breathe, Jump, Collect, Pulse, Wobble, Jelly, Spin, Shake,
-Teleport and Death Dissolve. Add a Sprite Frames output to play the result in the game, or a GIF
-output to share it.
+Teleport and Death Dissolve. Presets set the **Duration** and leave **Fps** as you have it. Add a
+Sprite Frames output to play the result in the game, or a GIF output to share it.
+
+## Frame counts and speed
+
+You don't pick frame counts for animated effects; you pick how long they last and how fast they
+play. [BitKilnAnimate](docs/classes/BitKilnAnimate.md), [BitKilnParticles](docs/classes/BitKilnParticles.md)
+and [BitKilnFxSheet](docs/classes/BitKilnFxSheet.md) each have a **Timing** group:
+
+- **Duration**: how long the effect lasts, in seconds.
+- **Fps**: the speed it plays at. Pixel art usually plays at 8–12 fps; fast effects like sparks
+  look smoother at 12–15.
+- **Frame Count**: 0 (Auto) makes Duration × Fps frames. The Inspector shows the result under it
+  ("Auto: 12 frames = 1.00 s at 12 fps"). Type a number to fix the count instead; the duration
+  then follows from it.
+
+Auto in Animate also nudges the count, by up to a quarter, so that effects repeating over the
+whole animation (squashes, hops, wobbles, blinks) get the same number of frames every cycle: three
+blinks in 0.8 s at 10 fps make 6 frames instead of 8.
+
+Particles and FX sheets make their own frames when they start from a single frame (a blank canvas,
+or a sprite), so leave the recipe's **Frames** at 1×1. Over a sheet that already has several frames
+(after an Animate, say), they draw on those frames instead.
+
+Sprite Frames and GIF outputs play at the same speed: their **Fps** is 0 by default, which means
+the fps of the last animating op they use (10 without one). Set it to play an output at another
+speed. The BitKiln dock's play bar follows it too, and shows how long the frames last.
+
+Typical lengths:
+
+| Effect | Duration | Frames at 10 fps |
+|---|---|---|
+| Hit flash, small pop | 0.3–0.5 s | 3–5 |
+| Jump, collect, squash | 0.6–0.9 s | 6–9 |
+| Death, dissolve | 0.8–1.2 s | 8–12 |
+| Looping fire, smoke, sparkles | 1–2 s | 10–20 |
+
+For particles, keep the fastest particle under about 3 pixels per frame (top **Speed** ÷ Fps), or
+it looks like it teleports; raise Fps for fast effects.
 
 ## Particles
 
 [BitKilnParticles](docs/classes/BitKilnParticles.md) simulates particles and draws them across the
 frames, like Pixel FX Designer, as part of a recipe. Use it on a blank canvas
-("New BitKiln Canvas") with the frames set to the frame count (10×1), or over a sprite (a torch's
-flame, a potion's bubbles). Each frame shows the particles at its moment of **Duration**.
+("New BitKiln Canvas"), or over a sprite (a torch's flame, a potion's bubbles). It makes
+Duration × Fps frames, each showing the particles at its moment (see
+[Frame counts and speed](#frame-counts-and-speed)).
 
 | Group | Settings |
 |---|---|
-| **Timing** | **Duration**, **Loop**, **Substeps** (smoother fast particles), **Seed**. |
+| **Timing** | **Duration**, **Fps**, **Frame Count** (0 = Auto), **Loop**, **Substeps** (smoother fast particles), **Seed**. |
 | **Emission** | **Rate** per second, **Bursts** (when, how many), **Emitter** (point, circle, ring, rectangle, line), its size and offset. |
 | **Motion** | **Lifetime** and its variation, **Direction** and **Spread**, **Speed** range, **Gravity**, **Drag**, **Radial Accel** (push or pull), **Swirl**. |
 | **Look** | **Shape** (pixel, circle, square, diamond, star, streak trailing the movement, or a **Sprite** sheet played over each particle's life), size from **Size Start** to **Size End** along a **Size Curve**, **Colors** over life (a Gradient; its alpha fades), **Color Steps**, **Blend** (normal or additive), **Dither Fades**, **Palette**. |
@@ -402,8 +441,9 @@ to one frame.
 [BitKilnFxSheet](docs/classes/BitKilnFxSheet.md) draws an animated effect across the frames:
 **Sparkle** (looping twinkles), **Impact** (a flash, then spikes bursting out), **Smoke** (puffs
 drifting toward **Direction**), **Slash** (a sweeping crescent), **Orb** (a looping pulse with a
-halo) and **Ring** (a shockwave). Set the recipe's frames to the frame count (8×1), and add a
-Sprite Frames output to play it.
+halo) and **Ring** (a shockwave). Its **Timing** group sets how long it lasts and how many frames
+it makes (see [Frame counts and speed](#frame-counts-and-speed)); add a Sprite Frames output to
+play it.
 
 Each pixel gets a heat from the hot core to the fading edge, colored by **Colors** (a Gradient) in
 **Color Steps** hard bands, so a sheet uses only a few colors. With a Constant gradient whose

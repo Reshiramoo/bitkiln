@@ -10,7 +10,7 @@ A file a [BitKilnRecipe](BitKilnRecipe.md) writes when baked: a layer saved as a
 |---|---|---|
 | PackedStringArray | [animation_names](#property-animation_names) | `[]` |
 | [Animations](#enum-animations) | [animations](#property-animations) | `ONE` |
-| float | [fps](#property-fps) | `10.0` |
+| float | [fps](#property-fps) | `0.0` |
 | int | [gif_scale](#property-gif_scale) | `4` |
 | [Kind](#enum-kind) | [kind](#property-kind) | `COLOR` |
 | bool | [loop](#property-loop) | `true` |
@@ -84,9 +84,9 @@ How frames are grouped into animations.
 ---
 
 <a id="property-fps"></a>
-### float fps = `10.0`
+### float fps = `0.0`
 
-Frames per second.
+Frames per second. 0 = the speed the recipe's animation is made for: the fps of its last [BitKilnAnimate](BitKilnAnimate.md), [BitKilnParticles](BitKilnParticles.md) or [BitKilnFxSheet](BitKilnFxSheet.md) this output uses (10 without one). See [BitKilnRecipe.get_fps()](BitKilnRecipe.md#method-get_fps).
 
 ---
 

@@ -3,8 +3,14 @@
 class_name BitKilnParticles
 extends BitKilnOp
 ## Simulates particles and draws them across the frames, as pixel art: fire, smoke,
-## sparks, explosions, magic, rain, snow. Each frame shows the particles at its moment of
-## [member duration], so set the recipe's frames to the number of frames (8×1, 12×1…).
+## sparks, explosions, magic, rain, snow.
+##
+## How many frames: set how long the effect lasts ([member duration]) and the speed it plays
+## at ([member fps]), and [member frame_count] at Auto works out the count. Starting from
+## one frame (a blank canvas, or a sprite the particles go over), the op makes that many
+## frames in a row, so the result plays at real speed. Over a sheet that already has several
+## frames (after a [BitKilnAnimate], say), it draws on those instead, spreading
+## [member duration] over them.
 ##
 ## The same settings always give the same sheet: every particle's randomness comes from
 ## [member seed] and its own number. With [member loop], emission repeats exactly every
@@ -34,8 +40,18 @@ enum Blend {
 }
 
 @export_group("Timing")
-## Seconds the frames cover.
+## Seconds the effect lasts. Hidden when [member frame_count] is set: the length is then
+## the frame count at [member fps].
 @export_range(0.05, 30.0, 0.05, "or_greater", "suffix:s") var duration := 1.0
+## Frames per second the effect is made for. Sprite Frames and GIF outputs play at this
+## speed unless they set their own, and so does the BitKiln dock's preview.
+@export_range(1.0, 60.0, 0.5, "or_greater", "suffix:fps") var fps := 10.0
+## Frames to make. 0 = Auto: [member duration] × [member fps]. Ignored over a sheet that
+## already has several frames.
+@export_range(0, 256, 1, "or_greater") var frame_count := 0:
+	set(value):
+		frame_count = maxi(value, 0)
+		notify_property_list_changed()
 ## Seamless loop: emission repeats every [member duration] and the simulation is warmed up,
 ## so the last frame leads into the first. Off: the effect starts empty (bursts, one-shots).
 @export var loop := true
@@ -108,7 +124,31 @@ enum Blend {
 @export_group("")
 
 
+func _validate_property(property: Dictionary) -> void:
+	if property.name == "duration" and frame_count > 0:
+		property.usage = PROPERTY_USAGE_STORAGE
+
+
+func get_fps() -> float:
+	return fps
+
+
+## How many frames the op makes from a single frame: [member frame_count], or with Auto,
+## [member duration] × [member fps].
+func get_frame_count() -> int:
+	return frame_count if frame_count > 0 else maxi(roundi(duration * fps), 1)
+
+
+## Seconds the frames the op makes cover, playing at [member fps].
+func get_duration() -> float:
+	return get_frame_count() / fps
+
+
 func _apply(context: BitKilnContext) -> void:
+	var span := duration
+	if context.frames == Vector2i.ONE:
+		context.repeat_frame(get_frame_count())
+		span = get_duration()
 	var size := context.frame_size
 	var total := context.frames.x * context.frames.y
 	var gradient := colors if colors != null else _default_colors()
@@ -116,7 +156,7 @@ func _apply(context: BitKilnContext) -> void:
 	var sprite_image := BitKilnBaker.load_texture_image(sprite) if shape == Shape.SPRITE and sprite != null else null
 	var sprite_buffer := BitKilnBuffer.from_image(sprite_image) if sprite_image != null else null
 	var center := Vector2(size) * 0.5 + emitter_offset
-	var snapshots := simulate(total)
+	var snapshots := simulate(total, 0, span)
 	var p := context.color.pixels
 	var mask_cache := {}
 	var palette_cache := {}
@@ -173,32 +213,34 @@ func _apply(context: BitKilnContext) -> void:
 	context.color.pixels = p
 
 
-## The particles alive at each of [param frame_count] frames:
+## The particles alive at each of [param count] frames:
 ## [code][x, y, vx, vy, age, life, id][/code] each, positions from the emitter's center.
 ## [param extra] more frames continue past the end (with [member loop], frame
-## [param frame_count] is the first one again).
-func simulate(frame_count: int, extra := 0) -> Array[Array]:
-	var frame_dt := duration / frame_count
+## [param count] is the first one again). The frames cover [param span] seconds
+## ([member duration] when negative).
+func simulate(count: int, extra := 0, span := -1.0) -> Array[Array]:
+	var length := span if span > 0.0 else duration
+	var frame_dt := length / count
 	var h := frame_dt / substeps
-	var per_period := maxi(0, roundi(rate * duration))
+	var per_period := maxi(0, roundi(rate * length))
 	var longest := lifetime
 	# Spawn times (seconds) and particle numbers, for the whole simulated span.
 	var start_time := 0.0
 	if loop:
-		start_time = -duration * ceilf(longest / duration)
+		start_time = -length * ceilf(longest / length)
 	var spawns: Array[Vector2] = [] # (time, id)
-	var period_start := floorf(start_time / duration) * duration
+	var period_start := floorf(start_time / length) * length
 	var period := 0
-	var end_time := duration * (1.0 + float(extra) / frame_count)
-	while period_start + period * duration < end_time:
-		var base := period_start + period * duration
+	var end_time := length * (1.0 + float(extra) / count)
+	while period_start + period * length < end_time:
+		var base := period_start + period * length
 		var id := 0
 		for k in per_period:
-			spawns.append(Vector2(base + (k + 0.5) / per_period * duration, id))
+			spawns.append(Vector2(base + (k + 0.5) / per_period * length, id))
 			id += 1
 		for burst in bursts:
 			for k in int(burst.y):
-				spawns.append(Vector2(base + clampf(burst.x, 0.0, 0.999) * duration, id))
+				spawns.append(Vector2(base + clampf(burst.x, 0.0, 0.999) * length, id))
 				id += 1
 		period += 1
 		if not loop:
@@ -206,16 +248,16 @@ func simulate(frame_count: int, extra := 0) -> Array[Array]:
 	spawns.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
 
 	var result: Array[Array] = []
-	for i in frame_count + extra:
+	for i in count + extra:
 		result.append([])
 	var alive: Array[Array] = []
 	var next_spawn := 0
 	var t := start_time
-	var steps := roundi((0.0 - start_time) / h) + (frame_count + extra) * substeps
+	var steps := roundi((0.0 - start_time) / h) + (count + extra) * substeps
 	for step in steps + 1:
 		# Frames are captured at the start of their step, once the simulation reaches 0.
 		var frame_step := step - roundi((0.0 - start_time) / h)
-		if frame_step >= 0 and frame_step % substeps == 0 and frame_step / substeps < frame_count + extra:
+		if frame_step >= 0 and frame_step % substeps == 0 and frame_step / substeps < count + extra:
 			var snapshot: Array = result[frame_step / substeps]
 			for particle in alive:
 				snapshot.append(particle.duplicate())
@@ -354,7 +396,7 @@ static func preset_names() -> PackedStringArray:
 ## A ready-made effect, as property values to set on the op.
 static func make_preset(preset: String) -> Dictionary:
 	var base := {
-		"duration": 1.0, "loop": true, "rate": 20.0, "bursts": PackedVector2Array(), "emitter": Emitter.POINT,
+		"duration": 1.0, "frame_count": 0, "loop": true, "rate": 20.0, "bursts": PackedVector2Array(), "emitter": Emitter.POINT,
 		"emitter_size": Vector2(4, 4), "emitter_offset": Vector2.ZERO, "lifetime": 1.0, "lifetime_random": 0.3,
 		"direction": -90.0, "spread": 40.0, "speed": Vector2(8, 18), "gravity": Vector2.ZERO, "drag": 0.0,
 		"radial_accel": 0.0, "swirl": 0.0, "shape": Shape.CIRCLE, "size_start": 3.0, "size_end": 1.0, "size_curve": null,

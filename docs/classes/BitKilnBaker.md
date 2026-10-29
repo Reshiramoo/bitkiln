@@ -16,7 +16,7 @@ Runs [BitKilnRecipe](BitKilnRecipe.md)s and writes their outputs.
 | String | [edit_signature](#method-edit_signature)(recipe: [BitKilnRecipe](BitKilnRecipe.md)) static |
 | PackedInt32Array | [empty_frames](#method-empty_frames)(context: [BitKilnContext](BitKilnContext.md)) static |
 | String | [fingerprint](#method-fingerprint)(recipe: [BitKilnRecipe](BitKilnRecipe.md)) static |
-| PackedByteArray | [gif_bytes](#method-gif_bytes)(context: [BitKilnContext](BitKilnContext.md), output: [BitKilnOutput](BitKilnOutput.md)) static |
+| PackedByteArray | [gif_bytes](#method-gif_bytes)(context: [BitKilnContext](BitKilnContext.md), output: [BitKilnOutput](BitKilnOutput.md), fps: float = 0.0) static |
 | [Image](https://docs.godotengine.org/en/stable/classes/class_image.html) | [load_image_file](#method-load_image_file)(path: String) static |
 | [Image](https://docs.godotengine.org/en/stable/classes/class_image.html) | [load_source](#method-load_source)(recipe: [BitKilnRecipe](BitKilnRecipe.md), index: int = 0) static |
 | [Image](https://docs.godotengine.org/en/stable/classes/class_image.html) | [load_texture_image](#method-load_texture_image)(texture: [Texture2D](https://docs.godotengine.org/en/stable/classes/class_texture2d.html)) static |
@@ -60,9 +60,9 @@ Changes whenever anything that affects the result changes: the source file, the 
 ---
 
 <a id="method-gif_bytes"></a>
-### PackedByteArray gif_bytes(context: [BitKilnContext](BitKilnContext.md), output: [BitKilnOutput](BitKilnOutput.md)) static
+### PackedByteArray gif_bytes(context: [BitKilnContext](BitKilnContext.md), output: [BitKilnOutput](BitKilnOutput.md), fps: float = 0.0) static
 
-`output`'s animated GIF of `context`'s frames.
+`output`'s animated GIF of `context`'s frames, at `fps` frames per second ([BitKilnOutput.fps](BitKilnOutput.md#property-fps) when 0 or less, or 10 if that's 0 too).
 
 ---
 

@@ -35,6 +35,7 @@ Every layer has the same size. [frames](#property-frames) splits them into equal
 | [BitKilnBuffer](BitKilnBuffer.md) | [get_layer](#method-get_layer)(layer_name: StringName) |
 | bool | [has_layer](#method-has_layer)(layer_name: StringName) |
 | void | [remap_frames](#method-remap_frames)(new_frame_size: Vector2i, offset: Vector2i) |
+| void | [repeat_frame](#method-repeat_frame)(count: int) |
 | void | [reset_source_mapping](#method-reset_source_mapping)() |
 | [BitKilnBuffer](BitKilnBuffer.md) | [scale_buffer](#method-scale_buffer)(src: [BitKilnBuffer](BitKilnBuffer.md), factor: int) static |
 | void | [scale_nearest](#method-scale_nearest)(factor: int) |
@@ -171,6 +172,13 @@ Whether there's a layer called `layer_name`.
 ### void remap_frames(new_frame_size: Vector2i, offset: Vector2i)
 
 Moves every frame's content by `offset` into frames of `new_frame_size`, cutting off whatever falls outside, in every layer. Padding is a bigger size and a positive offset; trimming a smaller size and a negative one.
+
+---
+
+<a id="method-repeat_frame"></a>
+### void repeat_frame(count: int)
+
+For ops that animate a still image: turns the single frame into a row of `count` copies of it, in every layer. Does nothing when there are several frames.
 
 ---
 

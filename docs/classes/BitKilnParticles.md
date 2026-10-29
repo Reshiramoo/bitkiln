@@ -2,11 +2,11 @@
 
 **Inherits:** [BitKilnOp](BitKilnOp.md)
 
-Simulates particles and draws them across the frames, as pixel art: fire, smoke, sparks, explosions, magic, rain, snow. Each frame shows the particles at its moment of [duration](#property-duration), so set the recipe's frames to the number of frames (8×1, 12×1…).
+Simulates particles and draws them across the frames, as pixel art: fire, smoke, sparks, explosions, magic, rain, snow.
 
 ## Description
 
-The same settings always give the same sheet: every particle's randomness comes from [seed](#property-seed) and its own number. With [loop](#property-loop), emission repeats exactly every [duration](#property-duration) and the simulation is warmed up first, so the last frame flows into the first. Particles snap to whole pixels, fade by dropping pixels in an ordered pattern, and can snap to a palette.
+How many frames: set how long the effect lasts ([duration](#property-duration)) and the speed it plays at ([fps](#property-fps)), and [frame_count](#property-frame_count) at Auto works out the count. Starting from one frame (a blank canvas, or a sprite the particles go over), the op makes that many frames in a row, so the result plays at real speed. Over a sheet that already has several frames (after a [BitKilnAnimate](BitKilnAnimate.md), say), it draws on those instead, spreading [duration](#property-duration) over them.  The same settings always give the same sheet: every particle's randomness comes from [seed](#property-seed) and its own number. With [loop](#property-loop), emission repeats exactly every [duration](#property-duration) and the simulation is warmed up first, so the last frame flows into the first. Particles snap to whole pixels, fade by dropping pixels in an ordered pattern, and can snap to a palette.
 
 ## Properties
 
@@ -23,6 +23,8 @@ The same settings always give the same sheet: every particle's randomness comes 
 | [Emitter](#enum-emitter) | [emitter](#property-emitter) | `POINT` |
 | Vector2 | [emitter_offset](#property-emitter_offset) | `Vector2(0, 0)` |
 | Vector2 | [emitter_size](#property-emitter_size) | `Vector2(4, 4)` |
+| float | [fps](#property-fps) | `10.0` |
+| int | [frame_count](#property-frame_count) | `0` |
 | Vector2 | [gravity](#property-gravity) | `Vector2(0, 0)` |
 | float | [lifetime](#property-lifetime) | `1.0` |
 | float | [lifetime_random](#property-lifetime_random) | `0.3` |
@@ -48,9 +50,12 @@ The same settings always give the same sheet: every particle's randomness comes 
 
 | Return | Signature |
 |---|---|
+| float | [get_duration](#method-get_duration)() |
+| float | [get_fps](#method-get_fps)() |
+| int | [get_frame_count](#method-get_frame_count)() |
 | Dictionary | [make_preset](#method-make_preset)(preset: String) static |
 | PackedStringArray | [preset_names](#method-preset_names)() static |
-| Array[Array] | [simulate](#method-simulate)(frame_count: int, extra: int = 0) |
+| Array[Array] | [simulate](#method-simulate)(count: int, extra: int = 0, span: float = -1.0) |
 
 ## Enumerations
 
@@ -134,7 +139,7 @@ Slows particles down: 0 = none, 3 = strongly.
 <a id="property-duration"></a>
 ### float duration = `1.0`
 
-Seconds the frames cover.
+Seconds the effect lasts. Hidden when [frame_count](#property-frame_count) is set: the length is then the frame count at [fps](#property-fps).
 
 ---
 
@@ -156,6 +161,20 @@ From the frame's center to the emitter, in pixels.
 ### Vector2 emitter_size = `Vector2(4, 4)`
 
 Radius (circle, ring), width and height (rectangle) or length (line), in pixels.
+
+---
+
+<a id="property-fps"></a>
+### float fps = `10.0`
+
+Frames per second the effect is made for. Sprite Frames and GIF outputs play at this speed unless they set their own, and so does the BitKiln dock's preview.
+
+---
+
+<a id="property-frame_count"></a>
+### int frame_count = `0`
+
+Frames to make. 0 = Auto: [duration](#property-duration) × [fps](#property-fps). Ignored over a sheet that already has several frames.
 
 ---
 
@@ -299,6 +318,25 @@ Swirl around the emitter, pixels per second² (positive = clockwise).
 
 ## Method Descriptions
 
+<a id="method-get_duration"></a>
+### float get_duration()
+
+Seconds the frames the op makes cover, playing at [fps](#property-fps).
+
+---
+
+<a id="method-get_fps"></a>
+### float get_fps()
+
+---
+
+<a id="method-get_frame_count"></a>
+### int get_frame_count()
+
+How many frames the op makes from a single frame: [frame_count](#property-frame_count), or with Auto, [duration](#property-duration) × [fps](#property-fps).
+
+---
+
 <a id="method-make_preset"></a>
 ### Dictionary make_preset(preset: String) static
 
@@ -314,6 +352,6 @@ Names of the ready-made effects, for [make_preset()](#method-make_preset). They'
 ---
 
 <a id="method-simulate"></a>
-### Array[Array] simulate(frame_count: int, extra: int = 0)
+### Array[Array] simulate(count: int, extra: int = 0, span: float = -1.0)
 
-The particles alive at each of `frame_count` frames: `[x, y, vx, vy, age, life, id]` each, positions from the emitter's center. `extra` more frames continue past the end (with [loop](#property-loop), frame `frame_count` is the first one again).
+The particles alive at each of `count` frames: `[x, y, vx, vy, age, life, id]` each, positions from the emitter's center. `extra` more frames continue past the end (with [loop](#property-loop), frame `count` is the first one again). The frames cover `span` seconds ([duration](#property-duration) when negative).
