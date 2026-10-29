@@ -19,14 +19,28 @@ enum Animations {
 	PER_ROW, ## One animation per row of frames: walk cycles per direction, for example.
 }
 
+## Where [code]{out}[/code] puts baked files (Project Settings → BitKiln → Output → Layout).
+enum Layout {
+	NEXT_TO_SOURCE, ## Beside the source: [code]art/hero_baked.png[/code].
+	FOLDER_PER_SOURCE, ## In a folder beside the source: [code]art/hero_baked/hero.png[/code].
+	SEPARATE_FOLDER, ## Under one folder, mirroring the project's folders, one folder per source: [code]baked/art/hero/hero.png[/code].
+}
+
+## Project setting: the [enum Layout] for [code]{out}[/code].
+const SETTING_LAYOUT := "bitkiln/output/layout"
+## Project setting: the folder [constant SEPARATE_FOLDER] uses.
+const SETTING_FOLDER := "bitkiln/output/folder"
+const DEFAULT_LAYOUT := Layout.SEPARATE_FOLDER
+const DEFAULT_FOLDER := "res://baked"
+
 ## Default [member path] for each [enum Kind].
 const DEFAULT_PATHS := {
-	Kind.COLOR: "{dir}/{name}_baked{variant}.png",
-	Kind.NORMAL: "{dir}/{name}_baked{variant}_n.png",
-	Kind.CANVAS_TEXTURE: "{dir}/{name}_lit{variant}.tres",
-	Kind.PALETTE: "{dir}/{name}_palette{variant}.png",
-	Kind.SPRITE_FRAMES: "{dir}/{name}_frames{variant}.tres",
-	Kind.TILE_SET: "{dir}/{name}_tiles{variant}.tres",
+	Kind.COLOR: "{out}{variant}.png",
+	Kind.NORMAL: "{out}{variant}_n.png",
+	Kind.CANVAS_TEXTURE: "{out}{variant}_lit.tres",
+	Kind.PALETTE: "{out}{variant}_palette.png",
+	Kind.SPRITE_FRAMES: "{out}{variant}_frames.tres",
+	Kind.TILE_SET: "{out}{variant}_tiles.tres",
 }
 
 ## What to write. Changing it also changes [member path] while it's still a default one.
@@ -36,12 +50,18 @@ const DEFAULT_PATHS := {
 			path = DEFAULT_PATHS[value]
 		kind = value
 		notify_property_list_changed()
-## Where to save. [code]{dir}[/code] is the source image's folder, [code]{name}[/code]
-## its file name without extension (the recipe's folder and name without a source), [code]{recipe}[/code] the recipe's file name without
+## Where to save. [code]{out}[/code] is where the project's output layout puts this
+## source's files, without extension (see [enum Layout]). [code]{dir}[/code] is the source
+## image's folder and [code]{name}[/code] its file name without extension (without a source,
+## the recipe's folder and name). [code]{recipe}[/code] is the recipe's file name without
 ## extension, and [code]{variant}[/code] an underscore and the variant's name (or nothing
 ## for the main image). Without [code]{variant}[/code], variants get it before the
 ## extension anyway, so they never overwrite each other.
-@export var path := "{dir}/{name}_baked{variant}.png"
+@export var path := "{out}{variant}.png"
+## Ops this output leaves out: it's written from the result of the other ops. Edited as a
+## checklist in the Inspector. Lets one recipe write several versions of each sprite, say
+## with and without a glow.
+@export_storage var skip_ops: Array[BitKilnOp] = []
 
 @export_group("Sprite Frames")
 ## How frames are grouped into animations.
@@ -85,8 +105,31 @@ func resolve(source_path: String, recipe_path: String, variant: String) -> Strin
 	var result := path
 	if not "{variant}" in result and not variant.is_empty():
 		result = result.get_basename() + "{variant}." + result.get_extension()
-	result = result.replace("{dir}", source_path.get_base_dir()) \
+	result = result.replace("{out}", out_base(source_path)) \
+		.replace("{dir}", source_path.get_base_dir()) \
 		.replace("{name}", source_path.get_file().get_basename()) \
 		.replace("{recipe}", recipe_path.get_file().get_basename()) \
 		.replace("{variant}", suffix)
 	return result.simplify_path()
+
+
+## Where the project's output layout puts the files of the source at [param source_path],
+## without extension: [code]res://baked/art/hero/hero[/code] for [code]res://art/hero.png[/code].
+static func out_base(source_path: String) -> String:
+	var dir := source_path.get_base_dir()
+	var name := source_path.get_file().get_basename()
+	match int(ProjectSettings.get_setting(SETTING_LAYOUT, DEFAULT_LAYOUT)):
+		Layout.NEXT_TO_SOURCE:
+			return dir.path_join(name + "_baked")
+		Layout.FOLDER_PER_SOURCE:
+			return dir.path_join(name + "_baked").path_join(name)
+	var root := String(ProjectSettings.get_setting(SETTING_FOLDER, DEFAULT_FOLDER))
+	if root.is_empty():
+		root = DEFAULT_FOLDER
+	var relative := dir.trim_prefix("res://").trim_prefix("user://")
+	return root.path_join(relative).path_join(name).path_join(name)
+
+
+## Whether this output uses [param op] (it isn't in [member skip_ops]).
+func uses_op(op: BitKilnOp) -> bool:
+	return not op in skip_ops

@@ -1,7 +1,7 @@
 @tool
 extends EditorContextMenuPlugin
-## FileSystem dock entries: "New BitKiln Recipe" on images, "New BitKiln Canvas" on
-## folders, "Bake" on recipes.
+## FileSystem dock entries: "New BitKiln Recipe" on images (one each, or one shared by all
+## of them), "New BitKiln Canvas" on folders, "Bake" on recipes.
 
 const Library := preload("kiln_library.gd")
 
@@ -25,6 +25,8 @@ func _popup_menu(paths: PackedStringArray) -> void:
 	if not images.is_empty():
 		add_context_menu_item("New BitKiln Recipe" if images.size() == 1 else "New BitKiln Recipes",
 			func(_selected: Array) -> void: _create_recipes(images), icon)
+	if images.size() > 1:
+		add_context_menu_item("New Shared BitKiln Recipe", func(_selected: Array) -> void: _create_shared(images), icon)
 	if folders.size() == 1:
 		add_context_menu_item("New BitKiln Canvas", func(_selected: Array) -> void: _create_canvas(folders[0]), icon)
 	if not recipes.is_empty():
@@ -52,6 +54,36 @@ func _create_recipes(images: PackedStringArray) -> void:
 		open.call(last)
 
 
+## One recipe for all [param images], named after their folder.
+func _create_shared(images: PackedStringArray) -> void:
+	var recipe := BitKilnRecipe.new()
+	var sources: Array[Texture2D] = []
+	var grids := {}
+	for image in images:
+		var texture := load(image) as Texture2D
+		if texture == null:
+			continue
+		sources.append(texture)
+		grids[BitKilnSheet.guess_frames(BitKilnBaker.load_texture_image(texture))] = true
+	recipe.sources = sources
+	# One grid for all when they agree; otherwise each source gets its own guess.
+	if grids.size() == 1:
+		recipe.frames = grids.keys()[0]
+	else:
+		recipe.auto_frames = true
+	var folder := images[0].get_base_dir()
+	var folder_name := folder.get_file() if folder != "res://" else "sprites"
+	var path := _free_path(folder.path_join(folder_name + "_kiln"), "tres")
+	if ResourceSaver.save(recipe, path) != OK:
+		push_error("BitKiln: couldn't save %s." % path)
+		return
+	EditorInterface.get_resource_filesystem().update_file(path)
+	recipe.take_over_path(path)
+	library.add_recipe_path(path)
+	EditorInterface.edit_resource(recipe)
+	open.call(recipe)
+
+
 ## A recipe without a source in [param folder], for generators to draw on.
 func _create_canvas(folder: String) -> void:
 	var recipe := BitKilnRecipe.new()
@@ -71,7 +103,7 @@ func _bake(recipes: PackedStringArray) -> void:
 	for path in recipes:
 		var recipe := library.load_recipe(path)
 		if recipe != null:
-			library.bake(recipe)
+			await library.bake(recipe)
 
 
 ## [param base].[param extension], or base_2, base_3… when taken.

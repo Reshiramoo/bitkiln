@@ -71,14 +71,49 @@ func get_status(recipe: BitKilnRecipe) -> Status:
 	return Status.BAKED
 
 
-## Bakes [param recipe], imports the files it wrote and builds its CanvasTexture outputs.
+## Bakes [param recipe], imports the files it wrote and builds its CanvasTexture, SpriteFrames
+## and TileSet outputs. When it creates folders, it waits for a filesystem scan: await it.
 func bake(recipe: BitKilnRecipe) -> BitKilnBaker.Result:
-	var result := BitKilnBaker.bake(recipe)
+	# Files written last time whose place changed (a new output layout, a renamed source or
+	# output) are moved there first, with their import settings and UIDs, so scenes and
+	# resources using them keep working.
+	var old_files: PackedStringArray = _fingerprints.get_value("outputs", recipe.resource_path, PackedStringArray())
+	var planned := BitKilnBaker.planned_files(recipe) if not old_files.is_empty() else PackedStringArray()
+	var moved: Array[String] = [] # from, to, from, to… (an Array: lambdas share it, unlike packed arrays)
+	var relocate := func(new_path: String, index: int) -> void:
+		if index >= old_files.size():
+			return
+		var old_path := old_files[index]
+		if old_path == new_path or old_path in planned or not FileAccess.file_exists(old_path) \
+				or FileAccess.file_exists(new_path):
+			return
+		if move_file(old_path, new_path):
+			moved.append_array([old_path, new_path])
+	var result := BitKilnBaker.bake(recipe, relocate)
+	for old_path in old_files:
+		if not old_path in result.files and not old_path in moved and FileAccess.file_exists(old_path):
+			result.warnings.append("%s isn't written any more; delete it if nothing uses it." % old_path)
 	var filesystem := EditorInterface.get_resource_filesystem()
-	if not result.written.is_empty():
-		for path in result.written:
+	var to_import := result.written.duplicate()
+	for k in range(1, moved.size(), 2):
+		if moved[k].get_extension() != "tres" and not moved[k] in to_import:
+			to_import.append(moved[k])
+	var all_known := true
+	for path in Array(to_import) + moved:
+		if filesystem.get_filesystem_path(path.get_base_dir()) == null:
+			all_known = false
+	if all_known:
+		for path in moved:
 			filesystem.update_file(path)
-		filesystem.reimport_files(result.written)
+		if not to_import.is_empty():
+			for path in to_import:
+				filesystem.update_file(path)
+			filesystem.reimport_files(to_import)
+	else:
+		# New folders: only a scan makes the editor see them (and import what's inside).
+		await _scan(to_import)
+	for k in range(0, moved.size(), 2):
+		result.warnings.append("Moved %s to %s." % [moved[k], moved[k + 1]])
 	for spec in result.canvas_textures:
 		var error := _save_canvas_texture(spec)
 		if not error.is_empty():
@@ -102,6 +137,24 @@ func bake(recipe: BitKilnRecipe) -> BitKilnBaker.Result:
 		_errors[path] = true
 	baked.emit(path, result)
 	return result
+
+
+## Scans the filesystem and waits until it's done and [param imported] are imported.
+func _scan(imported: PackedStringArray) -> void:
+	var filesystem := EditorInterface.get_resource_filesystem()
+	var tree := Engine.get_main_loop() as SceneTree
+	filesystem.scan()
+	for frame in 600:
+		await tree.process_frame
+		if filesystem.is_scanning():
+			continue
+		var done := true
+		for path in imported:
+			if not ResourceLoader.exists(path):
+				done = false
+				break
+		if done:
+			return
 
 
 ## Called with the files the editor just reimported: recipes with auto bake on that use
@@ -129,8 +182,9 @@ func on_resources_reimported(paths: PackedStringArray) -> void:
 ## Files [param recipe]'s result depends on: its source and every texture its ops use.
 static func dependencies(recipe: BitKilnRecipe) -> PackedStringArray:
 	var result := PackedStringArray()
-	if recipe.source != null:
-		result.append(recipe.source.resource_path)
+	for texture in recipe.sources:
+		if texture != null:
+			result.append(texture.resource_path)
 	for op in recipe.ops:
 		if op == null:
 			continue
@@ -157,8 +211,9 @@ func get_import_issues(recipe: BitKilnRecipe) -> Array[Dictionary]:
 				ProjectSettings.save(),
 		})
 	var files := PackedStringArray()
-	if recipe.source != null:
-		files.append(recipe.source.resource_path)
+	for texture in recipe.sources:
+		if texture != null:
+			files.append(texture.resource_path)
 	files.append_array(get_output_files(recipe))
 	var lossy := PackedStringArray()
 	var mipmapped := PackedStringArray()
@@ -200,7 +255,7 @@ func _outputs_exist(recipe: BitKilnRecipe) -> bool:
 func _bake_later(recipe_path: String) -> void:
 	var recipe := load_recipe(recipe_path)
 	if recipe != null and get_status(recipe) != Status.BAKED:
-		bake(recipe)
+		await bake(recipe)
 
 
 func _clear_cascade() -> void:
@@ -321,6 +376,31 @@ func _save_tile_set(spec: Dictionary) -> String:
 		return "Couldn't save %s: %s." % [path, error_string(error)]
 	EditorInterface.get_resource_filesystem().update_file(path)
 	return ""
+
+
+## Moves a file and its [code].import[/code] (which keeps its UID) to [param to], and
+## removes folders left empty. True when it moved.
+static func move_file(from: String, to: String) -> bool:
+	var dir := to.get_base_dir()
+	if not DirAccess.dir_exists_absolute(dir):
+		DirAccess.make_dir_recursive_absolute(dir)
+	if DirAccess.rename_absolute(from, to) != OK:
+		return false
+	if FileAccess.file_exists(from + ".import"):
+		DirAccess.rename_absolute(from + ".import", to + ".import")
+	var old_dir := from.get_base_dir()
+	while old_dir != "res://" and old_dir.begins_with("res://") and _is_empty_dir(old_dir):
+		DirAccess.remove_absolute(old_dir)
+		old_dir = old_dir.get_base_dir()
+	return true
+
+
+static func _is_empty_dir(path: String) -> bool:
+	var dir := DirAccess.open(path)
+	if dir == null:
+		return false
+	dir.include_hidden = true
+	return dir.get_files().is_empty() and dir.get_directories().is_empty()
 
 
 func _set_import_params(files: PackedStringArray, params: Dictionary) -> void:

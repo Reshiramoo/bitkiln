@@ -16,6 +16,9 @@ var _refresh_queued := false
 
 
 func _enter_tree() -> void:
+	_add_setting(BitKilnOutput.SETTING_LAYOUT, BitKilnOutput.DEFAULT_LAYOUT, TYPE_INT, PROPERTY_HINT_ENUM,
+		"Next to Source,Folder per Source,Separate Folder")
+	_add_setting(BitKilnOutput.SETTING_FOLDER, BitKilnOutput.DEFAULT_FOLDER, TYPE_STRING, PROPERTY_HINT_DIR)
 	_library = Library.new()
 	_importer = PaletteImporter.new()
 	add_import_plugin(_importer)
@@ -27,18 +30,24 @@ func _enter_tree() -> void:
 	_context_menu = ContextMenu.new()
 	_context_menu.library = _library
 	_context_menu.open = _dock.edit
+	_inspector.current_recipe = func() -> BitKilnRecipe: return _dock.get_recipe()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_FILESYSTEM, _context_menu)
 
 	var filesystem := EditorInterface.get_resource_filesystem()
 	filesystem.filesystem_changed.connect(_queue_refresh)
 	filesystem.resources_reimported.connect(_library.on_resources_reimported)
 	EditorInterface.get_inspector().property_edited.connect(_on_property_edited)
+	# history_changed: every new edit; version_changed: undo and redo.
+	get_undo_redo().history_changed.connect(_dock.queue_preview)
 	get_undo_redo().version_changed.connect(_dock.queue_preview)
+	ProjectSettings.settings_changed.connect(_dock.refresh_list)
 	_library.refresh()
 
 
 func _exit_tree() -> void:
+	ProjectSettings.settings_changed.disconnect(_dock.refresh_list)
 	get_undo_redo().version_changed.disconnect(_dock.queue_preview)
+	get_undo_redo().history_changed.disconnect(_dock.queue_preview)
 	EditorInterface.get_inspector().property_edited.disconnect(_on_property_edited)
 	var filesystem := EditorInterface.get_resource_filesystem()
 	filesystem.resources_reimported.disconnect(_library.on_resources_reimported)
@@ -64,6 +73,15 @@ func _edit(object: Object) -> void:
 
 func _on_property_edited(_property: String) -> void:
 	_dock.queue_preview()
+
+
+func _add_setting(setting: String, default: Variant, type: Variant.Type, hint := PROPERTY_HINT_NONE,
+		hint_string := "") -> void:
+	if not ProjectSettings.has_setting(setting):
+		ProjectSettings.set_setting(setting, default)
+	ProjectSettings.set_initial_value(setting, default)
+	ProjectSettings.add_property_info({name = setting, type = type, hint = hint, hint_string = hint_string})
+	ProjectSettings.set_as_basic(setting, true)
 
 
 ## The filesystem often changes in bursts; rescan once per frame at most.

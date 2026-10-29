@@ -9,6 +9,8 @@ enum View { RESULT, SOURCE, SIDE_BY_SIDE }
 const MAX_ZOOM := 32
 const GAP := 16.0
 const CHECKER := 8.0
+const PAN_SPEED := 20.0 # screen pixels per unit of trackpad pan or wheel scroll
+const MAGNIFY_STEP := 1.2 # pinch this much for one zoom step
 const LIT_SHADER := """
 shader_type canvas_item;
 uniform sampler2D normal_map : filter_nearest;
@@ -53,6 +55,7 @@ var _source_frames := Vector2i.ONE
 var _result_frames := Vector2i.ONE
 var _pan := Vector2.ZERO
 var _dragging := false
+var _magnify := 1.0 # pinch gathered toward the next zoom step
 var _source_rect := TextureRect.new()
 var _result_rect := TextureRect.new()
 var _overlay := Control.new()
@@ -120,18 +123,53 @@ func fit() -> void:
 	zoom = maxi(1, floori(minf(room.x / content.x, room.y / content.y)))
 
 
+## Zooms by [param steps], keeping the point under [param at] in place.
+func zoom_at(steps: int, at: Vector2) -> void:
+	var before := zoom
+	var after := clampi(zoom + steps, 1, MAX_ZOOM)
+	if after == before:
+		return
+	var center := size * 0.5 + _pan
+	_pan += (at - center) * (1.0 - float(after) / before)
+	_auto_fit = false
+	zoom = after
+
+
 func _gui_input(event: InputEvent) -> void:
+	# Trackpads: pinch zooms, two-finger scrolling pans.
+	var magnify := event as InputEventMagnifyGesture
+	if magnify != null:
+		_magnify *= magnify.factor
+		while _magnify >= MAGNIFY_STEP:
+			_magnify /= MAGNIFY_STEP
+			zoom_at(1, magnify.position)
+		while _magnify <= 1.0 / MAGNIFY_STEP:
+			_magnify *= MAGNIFY_STEP
+			zoom_at(-1, magnify.position)
+		accept_event()
+		return
+	var pan := event as InputEventPanGesture
+	if pan != null:
+		_pan -= pan.delta * PAN_SPEED
+		_auto_fit = false
+		_layout()
+		accept_event()
+		return
 	var mouse := event as InputEventMouseButton
 	if mouse != null:
-		if mouse.pressed and mouse.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
-			var before := zoom
-			var after := clampi(zoom + (1 if mouse.button_index == MOUSE_BUTTON_WHEEL_UP else -1), 1, MAX_ZOOM)
-			if after != before:
-				# Keep the point under the cursor in place.
-				var center := size * 0.5 + _pan
-				_pan += (mouse.position - center) * (1.0 - float(after) / before)
-				_auto_fit = false
-				zoom = after
+		if mouse.pressed and mouse.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN] and mouse.shift_pressed:
+			# Shift + wheel scrolls sideways.
+			_pan.x += (1.0 if mouse.button_index == MOUSE_BUTTON_WHEEL_UP else -1.0) * PAN_SPEED * maxf(mouse.factor, 1.0)
+			_auto_fit = false
+			_layout()
+			accept_event()
+		elif mouse.pressed and mouse.button_index in [MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]:
+			_pan.x += (1.0 if mouse.button_index == MOUSE_BUTTON_WHEEL_LEFT else -1.0) * PAN_SPEED * maxf(mouse.factor, 1.0)
+			_auto_fit = false
+			_layout()
+			accept_event()
+		elif mouse.pressed and mouse.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			zoom_at(1 if mouse.button_index == MOUSE_BUTTON_WHEEL_UP else -1, mouse.position)
 			accept_event()
 		elif mouse.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE]:
 			_dragging = mouse.pressed
@@ -150,22 +188,31 @@ func _gui_input(event: InputEvent) -> void:
 func _draw() -> void:
 	for rect: TextureRect in [_source_rect, _result_rect]:
 		if rect.visible and rect.texture != null:
-			_draw_checker(Rect2(rect.position, rect.size))
+			var pixel := zoom * (_source_scale if rect == _source_rect else 1)
+			_draw_checker(Rect2(rect.position, rect.size), checker_cell(pixel))
 
 
-func _draw_checker(area: Rect2) -> void:
+## Size of a checkerboard cell for sprite pixels [param pixel] screen pixels wide: a whole
+## number of sprite pixels, about [constant CHECKER] screen pixels or more, so the
+## checkerboard lines up with the sprite's pixels at every zoom.
+static func checker_cell(pixel: int) -> int:
+	return pixel * maxi(1, ceili(CHECKER / pixel))
+
+
+func _draw_checker(area: Rect2, cell: int) -> void:
 	var light := Color(0.42, 0.42, 0.42)
 	var dark := Color(0.32, 0.32, 0.32)
 	draw_rect(area, dark)
+	var step := float(cell)
 	var y := 0.0
 	var row := 0
 	while y < area.size.y:
-		var x := CHECKER if row % 2 == 0 else 0.0
+		var x := step if row % 2 == 0 else 0.0
 		while x < area.size.x:
-			var cell := Rect2(area.position + Vector2(x, y), Vector2(CHECKER, CHECKER)).intersection(area)
-			draw_rect(cell, light)
-			x += CHECKER * 2.0
-		y += CHECKER
+			var square := Rect2(area.position + Vector2(x, y), Vector2(step, step)).intersection(area)
+			draw_rect(square, light)
+			x += step * 2.0
+		y += step
 		row += 1
 
 

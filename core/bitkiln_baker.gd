@@ -45,12 +45,14 @@ const _IGNORED_PROPERTIES: Array[String] = ["resource_path", "resource_name", "r
 	"resource_scene_unique_id", "script"]
 
 
-## The recipe's source as an [Image]: read from the file itself when it's an image file
-## (exact pixels, whatever the import settings), from the texture otherwise.
-static func load_source(recipe: BitKilnRecipe) -> Image:
-	if recipe.source == null:
+## Source number [param index] of [param recipe] as an [Image]: read from the file itself
+## when it's an image file (exact pixels, whatever the import settings), from the texture
+## otherwise. [code]null[/code] without that source.
+static func load_source(recipe: BitKilnRecipe, index := 0) -> Image:
+	var texture := recipe.get_source(index)
+	if texture == null:
 		return null
-	return load_texture_image(recipe.source)
+	return load_texture_image(texture)
 
 
 ## [param texture]'s pixels, from its file when possible. Palettes and other textures
@@ -92,26 +94,30 @@ static func load_image_file(path: String) -> Image:
 	return image if error == OK and not image.is_empty() else null
 
 
-## Runs the recipe's first [param op_count] ops (all of them when negative) and returns
-## one context per variant, or nothing when the source can't be read. Without a source,
-## the ops start from a blank canvas.
-static func run(recipe: BitKilnRecipe, op_count := -1) -> Array[BitKilnContext]:
+## Runs the recipe's first [param op_count] ops (all of them when negative), leaving out
+## the ones in [param skip], on source number [param source_index], and returns one
+## context per variant, or nothing when the source can't be read. Without sources, the ops
+## start from a blank canvas.
+static func run(recipe: BitKilnRecipe, op_count := -1, source_index := 0, skip: Array[BitKilnOp] = []) -> Array[BitKilnContext]:
 	var result: Array[BitKilnContext] = []
 	var image: Image
-	if recipe.source == null:
-		var size := recipe.canvas_size * recipe.frames
+	var grid := recipe.frames
+	if recipe.get_source(source_index) == null:
+		var size := recipe.canvas_size * grid
 		image = Image.create_empty(size.x, size.y, false, Image.FORMAT_RGBA8)
 	else:
-		image = load_source(recipe)
+		image = load_source(recipe, source_index)
+		if image != null and recipe.auto_frames:
+			grid = BitKilnSheet.guess_frames(image)
 	if image == null or image.is_empty():
 		return result
-	var context := BitKilnContext.create(image, recipe.frames)
-	context.source_path = recipe.get_naming_path()
+	var context := BitKilnContext.create(image, grid)
+	context.source_path = recipe.get_naming_path(source_index)
 	result.append(context)
 	var count := recipe.ops.size() if op_count < 0 else mini(op_count, recipe.ops.size())
 	for i in count:
 		var op := recipe.ops[i]
-		if op == null or not op.enabled:
+		if op == null or not op.enabled or op in skip:
 			continue
 		var next: Array[BitKilnContext] = []
 		for c in result:
@@ -120,111 +126,146 @@ static func run(recipe: BitKilnRecipe, op_count := -1) -> Array[BitKilnContext]:
 	return result
 
 
-## Runs the recipe and saves its outputs.
-static func bake(recipe: BitKilnRecipe) -> Result:
+## Runs the recipe on every source and saves the outputs. Outputs that leave out ops
+## ([member BitKilnOutput.skip_ops]) get their own run; outputs with the same ops share one.
+## [param before_save] is called as [code](path, index)[/code] before each file is saved,
+## [code]index[/code] being its place in [member Result.files]; the editor uses it to move
+## a file whose path changed, so references to it keep working.
+static func bake(recipe: BitKilnRecipe, before_save := Callable()) -> Result:
 	var result := Result.new()
-	var source_path := recipe.get_naming_path()
-	if source_path.is_empty():
-		result.errors.append("Save the recipe first: without a source image, outputs are named after the recipe.")
-		return result
-	var contexts := run(recipe)
-	if contexts.is_empty():
-		result.errors.append("Couldn't read the source image %s." % source_path)
-		return result
 	if recipe.outputs.is_empty():
 		result.warnings.append("No outputs: nothing to write.")
-
 	var seen := {}
-	for context in contexts:
-		for warning in context.warnings:
-			if not warning in result.warnings:
-				result.warnings.append(warning)
-		var written_layers := {} # Kind -> path, for canvas textures
-		for output in recipe.outputs:
-			if output == null or output.kind in [BitKilnOutput.Kind.CANVAS_TEXTURE, BitKilnOutput.Kind.SPRITE_FRAMES,
-					BitKilnOutput.Kind.TILE_SET]:
-				continue
-			var path := output.resolve(source_path, recipe.resource_path, context.variant)
-			var layer := BitKilnContext.NORMAL if output.kind == BitKilnOutput.Kind.NORMAL else BitKilnContext.COLOR
-			var error := _check_path(path, source_path, seen)
-			if not error.is_empty():
-				result.errors.append(error)
-				continue
-			if not context.has_layer(layer):
-				result.errors.append("%s: there's no normal map to save. Add a BitKilnNormalMap op." % path.get_file())
-				continue
-			seen[path] = true
-			var image := palette_image(context.color) if output.kind == BitKilnOutput.Kind.PALETTE \
-				else context.get_layer(layer).to_image()
-			if _save_png(image, path, result):
-				written_layers[output.kind] = path
-		for output in recipe.outputs:
-			if output == null or output.kind != BitKilnOutput.Kind.TILE_SET:
-				continue
-			var path := output.resolve(source_path, recipe.resource_path, context.variant)
-			var error := _check_path(path, source_path, seen)
-			if not error.is_empty():
-				result.errors.append(error)
-				continue
-			if not written_layers.has(BitKilnOutput.Kind.COLOR):
-				result.errors.append("%s needs a Color output in the same recipe." % path.get_file())
-				continue
-			seen[path] = true
-			result.files.append(path)
-			result.tile_sets.append({
-				"path": path,
-				"texture": written_layers[BitKilnOutput.Kind.COLOR],
-				"frames": context.frames,
-				"frame_size": context.frame_size,
-				"empty": empty_frames(context),
-				"masks": context.meta.get("autotile_masks", PackedInt32Array()),
-				"terrain_name": output.terrain_name if not output.terrain_name.is_empty() else path.get_file().get_basename(),
-				"terrain_color": output.terrain_color,
-			})
-		for output in recipe.outputs:
-			if output == null or output.kind != BitKilnOutput.Kind.SPRITE_FRAMES:
-				continue
-			var path := output.resolve(source_path, recipe.resource_path, context.variant)
-			var error := _check_path(path, source_path, seen)
-			if not error.is_empty():
-				result.errors.append(error)
-				continue
-			if not written_layers.has(BitKilnOutput.Kind.COLOR):
-				result.errors.append("%s needs a Color output in the same recipe." % path.get_file())
-				continue
-			seen[path] = true
-			result.files.append(path)
-			result.sprite_frames.append({
-				"path": path,
-				"texture": written_layers[BitKilnOutput.Kind.COLOR],
-				"frames": context.frames,
-				"frame_size": context.frame_size,
-				"empty": empty_frames(context),
-				"animations": output.animations,
-				"names": output.animation_names,
-				"fps": output.fps,
-				"loop": output.loop,
-				"skip_empty": output.skip_empty,
-			})
-		for output in recipe.outputs:
-			if output == null or output.kind != BitKilnOutput.Kind.CANVAS_TEXTURE:
-				continue
-			var path := output.resolve(source_path, recipe.resource_path, context.variant)
-			var error := _check_path(path, source_path, seen)
-			if not error.is_empty():
-				result.errors.append(error)
-				continue
-			if not written_layers.has(BitKilnOutput.Kind.COLOR) or not written_layers.has(BitKilnOutput.Kind.NORMAL):
-				result.errors.append("%s needs a Color and a Normal output in the same recipe." % path.get_file())
-				continue
-			seen[path] = true
-			result.files.append(path)
-			result.canvas_textures.append({
-				"path": path,
-				"diffuse": written_layers[BitKilnOutput.Kind.COLOR],
-				"normal": written_layers[BitKilnOutput.Kind.NORMAL],
-			})
+	for source_index in recipe.get_run_count():
+		var source_path := recipe.get_naming_path(source_index)
+		if source_path.is_empty():
+			result.errors.append("Save the recipe first: without a source image, outputs are named after the recipe.")
+			return result
+		for group in output_groups(recipe):
+			var outputs: Array[BitKilnOutput] = group.outputs
+			var contexts := run(recipe, -1, source_index, group.skip)
+			if contexts.is_empty():
+				result.errors.append("Couldn't read the source image %s." % source_path)
+				break
+			for context in contexts:
+				for warning in context.warnings:
+					if not warning in result.warnings:
+						result.warnings.append(warning)
+				_write_outputs(recipe, outputs, context, source_path, seen, result, before_save)
 	return result
+
+
+## The recipe's outputs grouped by the ops they leave out:
+## [code]{"skip": Array[BitKilnOp], "outputs": Array[BitKilnOutput]}[/code] each.
+static func output_groups(recipe: BitKilnRecipe) -> Array[Dictionary]:
+	var groups: Array[Dictionary] = []
+	var by_key := {}
+	for output in recipe.outputs:
+		if output == null:
+			continue
+		var skip: Array[BitKilnOp] = []
+		var ids := PackedStringArray()
+		for op in recipe.ops:
+			if op != null and not output.uses_op(op):
+				skip.append(op)
+				ids.append(str(op.get_instance_id()))
+		var key := ",".join(ids)
+		if not by_key.has(key):
+			var empty: Array[BitKilnOutput] = []
+			by_key[key] = {"skip": skip, "outputs": empty}
+			groups.append(by_key[key])
+		(by_key[key].outputs as Array[BitKilnOutput]).append(output)
+	return groups
+
+
+## Every file [param recipe] writes with its current sources, ops and outputs, in the
+## order [method bake] writes them. Runs the ops, since variants decide the files.
+static func planned_files(recipe: BitKilnRecipe) -> PackedStringArray:
+	var files := PackedStringArray()
+	for source_index in recipe.get_run_count():
+		var source_path := recipe.get_naming_path(source_index)
+		for group in output_groups(recipe):
+			var outputs: Array[BitKilnOutput] = group.outputs
+			for context in run(recipe, -1, source_index, group.skip):
+				for kind_pass in [0, 1]:
+					for output in outputs:
+						var editor_made := output.kind in [BitKilnOutput.Kind.CANVAS_TEXTURE, BitKilnOutput.Kind.SPRITE_FRAMES,
+							BitKilnOutput.Kind.TILE_SET]
+						if editor_made == (kind_pass == 1):
+							files.append(output.resolve(source_path, recipe.resource_path, context.variant))
+	return files
+
+
+static func _write_outputs(recipe: BitKilnRecipe, outputs: Array[BitKilnOutput], context: BitKilnContext,
+		source_path: String, seen: Dictionary, result: Result, before_save: Callable) -> void:
+	var written_layers := {} # Kind -> path, for the outputs built from them
+	for output in outputs:
+		if output.kind in [BitKilnOutput.Kind.CANVAS_TEXTURE, BitKilnOutput.Kind.SPRITE_FRAMES, BitKilnOutput.Kind.TILE_SET]:
+			continue
+		var path := output.resolve(source_path, recipe.resource_path, context.variant)
+		var layer := BitKilnContext.NORMAL if output.kind == BitKilnOutput.Kind.NORMAL else BitKilnContext.COLOR
+		var error := _check_path(path, source_path, seen)
+		if not error.is_empty():
+			result.errors.append(error)
+			continue
+		if not context.has_layer(layer):
+			result.errors.append("%s: there's no normal map to save. Add a BitKilnNormalMap op." % path.get_file())
+			continue
+		seen[path] = true
+		if before_save.is_valid():
+			before_save.call(path, result.files.size())
+		var image := palette_image(context.color) if output.kind == BitKilnOutput.Kind.PALETTE \
+			else context.get_layer(layer).to_image()
+		if _save_png(image, path, result):
+			written_layers[output.kind] = path
+	for output in outputs:
+		if not output.kind in [BitKilnOutput.Kind.CANVAS_TEXTURE, BitKilnOutput.Kind.SPRITE_FRAMES, BitKilnOutput.Kind.TILE_SET]:
+			continue
+		var path := output.resolve(source_path, recipe.resource_path, context.variant)
+		var error := _check_path(path, source_path, seen)
+		if not error.is_empty():
+			result.errors.append(error)
+			continue
+		var needs_normal := output.kind == BitKilnOutput.Kind.CANVAS_TEXTURE
+		if not written_layers.has(BitKilnOutput.Kind.COLOR) or (needs_normal and not written_layers.has(BitKilnOutput.Kind.NORMAL)):
+			result.errors.append("%s needs a Color%s output with the same ops in this recipe."
+				% [path.get_file(), " and a Normal" if needs_normal else ""])
+			continue
+		seen[path] = true
+		if before_save.is_valid():
+			before_save.call(path, result.files.size())
+		result.files.append(path)
+		match output.kind:
+			BitKilnOutput.Kind.CANVAS_TEXTURE:
+				result.canvas_textures.append({
+					"path": path,
+					"diffuse": written_layers[BitKilnOutput.Kind.COLOR],
+					"normal": written_layers[BitKilnOutput.Kind.NORMAL],
+				})
+			BitKilnOutput.Kind.SPRITE_FRAMES:
+				result.sprite_frames.append({
+					"path": path,
+					"texture": written_layers[BitKilnOutput.Kind.COLOR],
+					"frames": context.frames,
+					"frame_size": context.frame_size,
+					"empty": empty_frames(context),
+					"animations": output.animations,
+					"names": output.animation_names,
+					"fps": output.fps,
+					"loop": output.loop,
+					"skip_empty": output.skip_empty,
+				})
+			BitKilnOutput.Kind.TILE_SET:
+				result.tile_sets.append({
+					"path": path,
+					"texture": written_layers[BitKilnOutput.Kind.COLOR],
+					"frames": context.frames,
+					"frame_size": context.frame_size,
+					"empty": empty_frames(context),
+					"masks": context.meta.get("autotile_masks", PackedInt32Array()),
+					"terrain_name": output.terrain_name if not output.terrain_name.is_empty() else path.get_file().get_basename(),
+					"terrain_color": output.terrain_color,
+				})
 
 
 ## Indices (row by row) of [param context]'s frames with no visible pixels.
@@ -270,8 +311,17 @@ static func palette_image(buffer: BitKilnBuffer) -> Image:
 ## (and their scripts), files they use, and the outputs.
 static func fingerprint(recipe: BitKilnRecipe) -> String:
 	var parts := PackedStringArray()
-	parts.append(_describe(recipe))
+	parts.append(_describe(recipe, true))
+	# Where files go is part of the result too.
+	parts.append(str(ProjectSettings.get_setting(BitKilnOutput.SETTING_LAYOUT, BitKilnOutput.DEFAULT_LAYOUT)))
+	parts.append(str(ProjectSettings.get_setting(BitKilnOutput.SETTING_FOLDER, BitKilnOutput.DEFAULT_FOLDER)))
 	return "\n".join(parts).md5_text()
+
+
+## Like [method fingerprint], but cheap enough to check many times a second: files count by
+## their modification time instead of their contents. Changes whenever the recipe is edited.
+static func edit_signature(recipe: BitKilnRecipe) -> String:
+	return _describe(recipe, false).md5_text()
 
 
 ## [code]""[/code] when [param path] can be written.
@@ -305,13 +355,13 @@ static func _save_png(image: Image, path: String, result: Result) -> bool:
 	return true
 
 
-static func _describe(value: Variant) -> String:
+static func _describe(value: Variant, hash_files: bool) -> String:
 	if value is Resource:
 		var resource := value as Resource
 		var path := resource.resource_path
 		if not path.is_empty() and not "::" in path and not resource is BitKilnRecipe:
 			# A file of its own (an image, a palette, a saved op): its contents count.
-			return "%s#%s" % [path, FileAccess.get_md5(path)]
+			return "%s#%s" % [path, FileAccess.get_md5(path) if hash_files else str(FileAccess.get_modified_time(path))]
 		var text := resource.get_class()
 		var script := resource.get_script() as Script
 		if script != null:
@@ -321,11 +371,11 @@ static func _describe(value: Variant) -> String:
 				continue
 			if resource is BitKilnRecipe and property.name == "auto_bake":
 				continue
-			text += "\n%s=%s" % [property.name, _describe(resource.get(property.name))]
+			text += "\n%s=%s" % [property.name, _describe(resource.get(property.name), hash_files)]
 		return text
 	if value is Array:
 		var items := PackedStringArray()
 		for item: Variant in value:
-			items.append(_describe(item))
+			items.append(_describe(item, hash_files))
 		return "[%s]" % ", ".join(items)
 	return var_to_str(value)

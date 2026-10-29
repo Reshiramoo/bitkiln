@@ -1,8 +1,9 @@
 @tool
 extends EditorDock
 ## The BitKiln dock: every recipe in the project with its bake status, a live preview of
-## the selected one (any variant, layer and number of ops), import checks and the bake log.
-## Recipes themselves are edited in the Inspector; the preview follows every change.
+## the selected one (any source, variant, layer, number of ops or output), its output files,
+## import checks and the bake log. Recipes themselves are edited in the Inspector; the
+## preview follows every change.
 
 const Library := preload("kiln_library.gd")
 const Preview := preload("kiln_preview.gd")
@@ -10,7 +11,10 @@ const Preview := preload("kiln_preview.gd")
 enum Layer { COLOR, NORMAL, LIT }
 
 const PREVIEW_DELAY := 0.12
-
+## How often the shown recipe is checked for edits the editor doesn't report (sub-resources
+## edited in place, gradient and curve editors).
+const WATCH_INTERVAL := 0.3
+const AS_OUTPUT := 1000 # ops menu ids from here: preview as output (id - AS_OUTPUT)
 var _plugin: EditorPlugin
 var _library: Library
 var _recipe: BitKilnRecipe
@@ -20,6 +24,7 @@ var _filter: LineEdit
 var _tree: Tree
 var _bake_all: Button
 var _title: Label
+var _source_pick: OptionButton
 var _variant: OptionButton
 var _layer: OptionButton
 var _view: OptionButton
@@ -30,10 +35,13 @@ var _info: Label
 var _preview: Preview
 var _placeholder: Label
 var _bake: Button
+var _outputs: MenuButton
 var _status: Label
 var _issues: VBoxContainer
 var _log: RichTextLabel
 var _timer := Timer.new()
+var _watch := Timer.new()
+var _signature := ""
 
 
 func setup(plugin: EditorPlugin, library: Library) -> void:
@@ -49,6 +57,10 @@ func setup(plugin: EditorPlugin, library: Library) -> void:
 	_timer.wait_time = PREVIEW_DELAY
 	_timer.timeout.connect(_update_preview)
 	add_child(_timer)
+	_watch.wait_time = WATCH_INTERVAL
+	_watch.autostart = true
+	_watch.timeout.connect(_check_for_edits)
+	add_child(_watch)
 
 	var split := HSplitContainer.new()
 	split.custom_minimum_size.y = 240.0
@@ -103,10 +115,11 @@ func _build_preview() -> Control:
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_title.clip_text = true
 	bar.add_child(_title)
+	_source_pick = _option(bar, [], "Source to show (every source is baked)")
 	_variant = _option(bar, [], "Variant to show (palette swaps make one per palette)")
 	_layer = _option(bar, ["Color", "Normal", "Lit"], "Layer: the colors, the normal map, or the colors lit by a light that follows the mouse")
 	_view = _option(bar, ["Result", "Source", "Side by Side"], "Show the result, the source, or both")
-	_ops = _option(bar, [], "Preview the result after only the first ops")
+	_ops = _option(bar, [], "Preview the result after only the first ops, or as one of the outputs that leave ops out")
 	_grid = Button.new()
 	_grid.icon = _icon("Grid")
 	_grid.toggle_mode = true
@@ -149,14 +162,25 @@ func _build_preview() -> Control:
 func _build_side() -> Control:
 	var box := VBoxContainer.new()
 	box.custom_minimum_size.x = 240.0
+	var row := HBoxContainer.new()
+	box.add_child(row)
 	_bake = Button.new()
 	_bake.text = "Bake"
 	_bake.icon = _icon("ImageTexture")
 	_bake.tooltip_text = "Write this recipe's outputs"
+	_bake.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_bake.pressed.connect(func() -> void:
 		if _recipe != null:
 			_library.bake(_recipe))
-	box.add_child(_bake)
+	row.add_child(_bake)
+	_outputs = MenuButton.new()
+	_outputs.text = "Outputs"
+	_outputs.icon = _icon("Folder")
+	_outputs.flat = false
+	_outputs.tooltip_text = "Open this recipe's output files"
+	_outputs.about_to_popup.connect(_fill_outputs_menu)
+	_outputs.get_popup().id_pressed.connect(_on_output_chosen)
+	row.add_child(_outputs)
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(_status)
@@ -178,10 +202,26 @@ func edit(recipe: BitKilnRecipe) -> void:
 	make_visible()
 
 
+## The recipe shown in the dock, or null.
+func get_recipe() -> BitKilnRecipe:
+	return _recipe
+
+
 ## Something in the editor changed (an Inspector edit, undo, redo): preview again shortly.
 func queue_preview() -> void:
 	if _recipe != null:
 		_timer.start()
+
+
+## Catches every edit of the shown recipe, including ones the editor sends no signal for.
+func _check_for_edits() -> void:
+	if _recipe == null or not is_visible_in_tree():
+		return
+	var signature := BitKilnBaker.edit_signature(_recipe)
+	if signature != _signature:
+		_signature = signature
+		queue_preview()
+		refresh_list() # the recipe's status icon
 
 
 func refresh_list() -> void:
@@ -207,13 +247,16 @@ func refresh_list() -> void:
 
 func _show_recipe(recipe: BitKilnRecipe) -> void:
 	_recipe = recipe
+	_signature = BitKilnBaker.edit_signature(recipe) if recipe != null else ""
 	_contexts.clear()
 	_variant.clear()
+	_source_pick.clear()
 	_rebuild_ops()
 	_title.text = recipe.resource_path.get_file() if recipe != null else ""
 	_bake.disabled = recipe == null
 	if recipe == null:
 		_preview.set_images(null, null, null, Vector2i.ONE, Vector2i.ONE, true)
+		_source_pick.visible = false
 		_placeholder.text = "Select a recipe, or right-click an image in the FileSystem dock and choose New BitKiln Recipe (or a folder for a blank canvas to draw on)."
 		_placeholder.visible = true
 		_info.text = ""
@@ -227,13 +270,19 @@ func _update_preview(refit := false) -> void:
 	if _recipe == null:
 		return
 	_rebuild_ops()
-	var op_count := _ops.get_selected_id() if _ops.selected > 0 else -1
+	_rebuild_sources()
+	var source_index := maxi(_source_pick.selected, 0)
+	var id := _ops.get_selected_id() if _ops.selected > 0 else -1
+	var op_count := id if id >= 0 and id < AS_OUTPUT else -1
+	var skip: Array[BitKilnOp] = []
+	if id >= AS_OUTPUT and id - AS_OUTPUT < _recipe.outputs.size() and _recipe.outputs[id - AS_OUTPUT] != null:
+		skip = _recipe.outputs[id - AS_OUTPUT].skip_ops
 	var started := Time.get_ticks_usec()
-	_contexts = BitKilnBaker.run(_recipe, op_count)
+	_contexts = BitKilnBaker.run(_recipe, op_count, source_index, skip)
 	var elapsed := (Time.get_ticks_usec() - started) / 1000.0
 	if _contexts.is_empty():
 		_preview.set_images(null, null, null, Vector2i.ONE, Vector2i.ONE, true)
-		_placeholder.text = "Couldn't read %s." % _recipe.source.resource_path
+		_placeholder.text = "Couldn't read %s." % _recipe.get_naming_path(source_index)
 		_placeholder.visible = true
 		_info.text = ""
 		return
@@ -254,11 +303,11 @@ func _update_preview(refit := false) -> void:
 	var layer := _layer.selected
 	var normal := context.get_layer(BitKilnContext.NORMAL)
 	var shown := normal if layer == Layer.NORMAL and normal != null else context.color
-	var source := BitKilnBaker.load_source(_recipe)
+	var source := BitKilnBaker.load_source(_recipe, source_index)
 	_preview.lit = layer == Layer.LIT
 	_preview.view = _view.selected
 	_preview.set_images(ImageTexture.create_from_image(source) if source != null else null, shown.to_texture(),
-		normal.to_texture() if normal != null else null, _recipe.frames, context.frames, refit)
+		normal.to_texture() if normal != null else null, _source_grid(source), context.frames, refit)
 
 	var notes := PackedStringArray()
 	notes.append("%d×%d" % [context.width, context.height])
@@ -276,7 +325,7 @@ func _update_preview(refit := false) -> void:
 
 
 func _rebuild_ops() -> void:
-	var previous := _ops.selected
+	var previous := _ops.get_selected_id() if _ops.selected >= 0 else -1
 	_ops.clear()
 	_ops.add_item("All Ops", -1)
 	if _recipe != null:
@@ -284,8 +333,74 @@ func _rebuild_ops() -> void:
 			var op := _recipe.ops[i]
 			var op_name := _op_name(op)
 			_ops.add_item("Up to %d: %s" % [i + 1, op_name], i + 1)
-	_ops.select(clampi(previous, 0, _ops.item_count - 1))
+		var first_output := true
+		for i in _recipe.outputs.size():
+			var output := _recipe.outputs[i]
+			if output == null or output.skip_ops.is_empty():
+				continue
+			if first_output:
+				_ops.add_separator()
+				first_output = false
+			_ops.add_item("As Output %d: %s" % [i + 1, output.path.get_file()], AS_OUTPUT + i)
+	var index := _ops.get_item_index(previous)
+	_ops.select(index if index >= 0 else 0)
 	_ops.visible = _recipe != null and not _recipe.ops.is_empty()
+
+
+func _rebuild_sources() -> void:
+	var previous := _source_pick.selected
+	_source_pick.clear()
+	if _recipe == null:
+		return
+	for i in _recipe.get_run_count():
+		var source := _recipe.get_source(i)
+		_source_pick.add_item(source.resource_path.get_file() if source != null else "Blank Canvas")
+	_source_pick.select(clampi(previous, 0, _source_pick.item_count - 1))
+	_source_pick.visible = _source_pick.item_count > 1
+
+
+## The frame grid the recipe uses for [param source].
+func _source_grid(source: Image) -> Vector2i:
+	if source != null and _recipe.auto_frames:
+		return BitKilnSheet.guess_frames(source)
+	return _recipe.frames
+
+
+func _fill_outputs_menu() -> void:
+	var popup := _outputs.get_popup()
+	popup.clear()
+	if _recipe == null:
+		return
+	var files := _library.get_output_files(_recipe)
+	var baked := not files.is_empty()
+	if not baked:
+		files = BitKilnBaker.planned_files(_recipe)
+	for i in files.size():
+		var path := files[i]
+		var exists := FileAccess.file_exists(path)
+		popup.add_icon_item(_icon("ImageTexture" if path.get_extension() == "png" else "Object"),
+			path.trim_prefix("res://") + ("" if exists else "  (not baked)"), i)
+		popup.set_item_metadata(popup.item_count - 1, path)
+		popup.set_item_disabled(popup.item_count - 1, not exists)
+		popup.set_item_tooltip(popup.item_count - 1, "Select it in the FileSystem dock and open it")
+	if files.is_empty():
+		popup.add_item("No outputs", -2)
+		popup.set_item_disabled(0, true)
+		return
+	popup.add_separator()
+	popup.add_icon_item(_icon("Filesystem"), "Show Folder in File Manager", -1)
+	popup.set_item_metadata(popup.item_count - 1, files[0])
+
+
+func _on_output_chosen(id: int) -> void:
+	var popup := _outputs.get_popup()
+	var path: String = popup.get_item_metadata(popup.get_item_index(id))
+	if id == -1:
+		OS.shell_show_in_file_manager(ProjectSettings.globalize_path(path))
+		return
+	EditorInterface.get_file_system_dock().navigate_to_path(path)
+	if ResourceLoader.exists(path):
+		EditorInterface.edit_resource(load(path))
 
 
 func _update_status() -> void:
@@ -339,13 +454,14 @@ func _on_baked(recipe_path: String, result: BitKilnBaker.Result) -> void:
 	for warning in result.warnings:
 		_log.append_text("%s[color=#%s]%s[/color]\n" % [head, theme.get_color(&"warning_color", &"Editor").to_html(false), warning])
 	refresh_list()
+	queue_preview()
 
 
 func _bake_stale() -> void:
 	for path in _library.get_recipe_paths():
 		var recipe := _library.load_recipe(path)
 		if recipe != null and _library.get_status(recipe) != Library.Status.BAKED:
-			_library.bake(recipe)
+			await _library.bake(recipe)
 
 
 func _on_item_selected() -> void:
