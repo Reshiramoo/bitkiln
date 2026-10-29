@@ -1,6 +1,6 @@
 # BitKilnReduce
 
-**Inherits:** [BitKilnOp](BitKilnOp.md)
+**Inherits:** [Resource](https://docs.godotengine.org/en/stable/classes/class_resource.html)
 
 Reduces the image to at most [colors](#property-colors) colors, picking them from the image itself (median cut, weighted by how many pixels use each color). Good for cleaning up painted or scaled art into a pixel-art palette; add a Palette output to save the colors it picked.
 

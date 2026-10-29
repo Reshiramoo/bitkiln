@@ -16,6 +16,7 @@ Runs [BitKilnRecipe](BitKilnRecipe.md)s and writes their outputs.
 | String | [edit_signature](#method-edit_signature)(recipe: [BitKilnRecipe](BitKilnRecipe.md)) static |
 | PackedInt32Array | [empty_frames](#method-empty_frames)(context: [BitKilnContext](BitKilnContext.md)) static |
 | String | [fingerprint](#method-fingerprint)(recipe: [BitKilnRecipe](BitKilnRecipe.md)) static |
+| PackedByteArray | [gif_bytes](#method-gif_bytes)(context: [BitKilnContext](BitKilnContext.md), output: [BitKilnOutput](BitKilnOutput.md)) static |
 | [Image](https://docs.godotengine.org/en/stable/classes/class_image.html) | [load_image_file](#method-load_image_file)(path: String) static |
 | [Image](https://docs.godotengine.org/en/stable/classes/class_image.html) | [load_source](#method-load_source)(recipe: [BitKilnRecipe](BitKilnRecipe.md), index: int = 0) static |
 | [Image](https://docs.godotengine.org/en/stable/classes/class_image.html) | [load_texture_image](#method-load_texture_image)(texture: [Texture2D](https://docs.godotengine.org/en/stable/classes/class_texture2d.html)) static |
@@ -55,6 +56,13 @@ Indices (row by row) of `context`'s frames with no visible pixels.
 ### String fingerprint(recipe: [BitKilnRecipe](BitKilnRecipe.md)) static
 
 Changes whenever anything that affects the result changes: the source file, the ops (and their scripts), files they use, and the outputs.
+
+---
+
+<a id="method-gif_bytes"></a>
+### PackedByteArray gif_bytes(context: [BitKilnContext](BitKilnContext.md), output: [BitKilnOutput](BitKilnOutput.md)) static
+
+`output`'s animated GIF of `context`'s frames.
 
 ---
 

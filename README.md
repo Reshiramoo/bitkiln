@@ -15,6 +15,9 @@ don't need the plugin, and the original art is never touched.
   RotSprite rotation, including 8- or 16-direction sets.
 - **Lighting**: normal maps for 2D lights (snapped to a few directions so light falls in clean
   bands, ready-made `CanvasTexture`s) and automatic banded, hue-shifted shading.
+- **Animation**: turn a still sprite into an animated sheet with juice effects (squash and
+  stretch, hops, shakes, wobbles, spins, waves, flashes, fades, dissolves, afterimages) and
+  ready-made presets; play it in the dock and export GIFs.
 - **Sprite sheets**: frame-grid guessing, repacking, and `SpriteFrames` for AnimatedSprite2D.
 - **Generators** for making art from nothing: pixel-perfect shapes, animated FX sheets
   (sparkles, impacts, smoke, slashes, orbs, shockwaves), seeded random sprites, tileable noise
@@ -45,6 +48,7 @@ don't need the plugin, and the original art is never touched.
   - [Glow and blur](#glow-and-blur)
   - [Sprite sheets](#sprite-sheets)
   - [Baking a material](#baking-a-material)
+- [Animation](#animation)
 - [Generators](#generators)
   - [Shapes](#shapes)
   - [FX sheets](#fx-sheets)
@@ -124,6 +128,7 @@ changes every frame by the same amount so the grid stays regular.
 | **Palette** | Every color of the result, darkest first, as a one-row PNG: a palette for Palette Swap, Quantize or Pocket's shaders. |
 | **Sprite Frames** | A `SpriteFrames` `.tres` for an AnimatedSprite2D, cut from the Color output: one animation, or one per row (named, with fps and looping), leaving out empty cells. See [Sprite sheets](#sprite-sheets). |
 | **Tile Set** | A `TileSet` `.tres` with the Color output as an atlas, one tile per non-empty frame; after an Autotile op, with a terrain set up for painting. See [Autotiles](#autotiles). |
+| **GIF** | The frames as an animated GIF (fps, looping, empty frames left out, each pixel scaled up by **Gif Scale**), for sharing outside the game. |
 
 An output's `path` can use `{out}` (where the project's [layout](#where-baked-files-go) puts
 this source's files, without extension), `{dir}` (the source's folder), `{name}` (the source's
@@ -181,6 +186,8 @@ no longer writes are listed in the log for you to delete.
 | [BitKilnAdjust](docs/classes/BitKilnAdjust.md) | Hue, saturation, brightness, contrast and tint. |
 | [BitKilnGradientMap](docs/classes/BitKilnGradientMap.md) | Recolors by brightness through a Gradient: greyscale art into any color scheme. |
 | [BitKilnMaterial](docs/classes/BitKilnMaterial.md) | Renders the image through a CanvasItem material (see [Baking a material](#baking-a-material)). |
+| **Animation** | |
+| [BitKilnAnimate](docs/classes/BitKilnAnimate.md) | Turns each frame into an animation from juice effects (see [Animation](#animation)). |
 | **Generators** | |
 | [BitKilnShape](docs/classes/BitKilnShape.md) | Pixel-perfect ellipses, rectangles, polygons, stars and lines (see [Shapes](#shapes)). |
 | [BitKilnFxSheet](docs/classes/BitKilnFxSheet.md) | Animated effects across the frames (see [FX sheets](#fx-sheets)). |
@@ -311,6 +318,42 @@ It needs a renderer, so it works in the editor and in games but skips itself (wi
 `--headless` runs. Effects that change over time are caught at an arbitrary moment, and effects
 that draw outside the sprite need a Pad before it.
 
+## Animation
+
+[BitKilnAnimate](docs/classes/BitKilnAnimate.md) turns a still sprite into an animated sheet, the
+way tools like Juice FX do, but inside the recipe: outlines, palettes and scalers can come before
+or after it. Each source frame becomes a row of **Frame Count** frames, so a sheet of poses gets
+an animation per pose. **Effects** is a stack of [BitKilnMotion](docs/classes/BitKilnMotion.md)s,
+applied in order:
+
+| Effect | What it does |
+|---|---|
+| **Squash** | Squash and stretch around **Pivot** (bottom middle by default), **Cycles** times. |
+| **Jump** | Hops up **Amount** pixels and lands. |
+| **Shake** | Jitters along **Direction**'s axes, settling down. |
+| **Wobble** / **Skew** | Rocks or leans like jelly, settling down. |
+| **Spin** | Full turns around **Pivot**. |
+| **Wave** | Rows (or columns) ripple sideways. |
+| **Move** / **Scale** | Slides along **Direction**, or grows. |
+| **Flash** / **Tint** | Turns or mixes in **Color**: hit flashes, poison tints. |
+| **Fade** / **Blink** | Fades out, or disappears and reappears. |
+| **Dissolve** | Crumbles away pixel by pixel, with a glowing edge in **Color**. |
+| **Afterimage** | Ghost copies of earlier frames trail behind. |
+
+Every effect has a window (**Start**, **End**, 0–1 of the animation) and an optional **Curve**: for
+swinging effects it scales the swings, for the others it's the value itself. The Inspector only
+shows the settings an effect uses. **Loop** makes the last frame lead back into the first; turn it
+off for one-shots like a death dissolve. **Margin** gives the motion room.
+
+It stays pixel art: movement snaps to whole pixels, rotation and skewing use RotSprite (no new
+colors), and fades remove whole pixels in an ordered pattern (**Dither Fades**). Normal maps
+animate with the colors.
+
+**Animation Presets**, a menu on the op in the Inspector, loads a ready-made setup in one undoable
+step: Hit Flash, Damage Blink, Idle Bob, Breathe, Jump, Collect, Pulse, Wobble, Jelly, Spin, Shake,
+Teleport and Death Dissolve. Add a Sprite Frames output to play the result in the game, or a GIF
+output to share it.
+
 ## Generators
 
 Generators are ops that draw. On a recipe without a source ("New BitKiln Canvas" on a folder),
@@ -387,6 +430,7 @@ The **BitKiln** dock (bottom panel):
 | Area | What it does |
 |---|---|
 | **Recipe list** | Every recipe in the project, with its status: up to date, changed since the last bake, or failed. Filter by name; double-click to inspect. **Bake All Stale** bakes every recipe that isn't up to date. |
+| **Play bar** | Under the preview, for sheets: show one frame at a time, play and pause, step, scrub, and set the speed (taken from the recipe's Sprite Frames output when it has one). |
 | **Preview** | The selected recipe's result, at whole-number zoom on a checkerboard of whole sprite pixels. Menus pick the source, the variant, the layer (**Color**, **Normal**, **Lit**), the view (**Result**, **Source**, **Side by Side**) and how many ops to apply ("Up to 2: Outline", or "As Output 2"), to see the stack step by step. The wheel or a pinch zooms at the cursor; drag, two-finger scroll or Shift+wheel pans; the grid button shows frame edges. Size, frame size, color count, warnings and time per run appear underneath. |
 | **Side panel** | **Bake**; **Outputs**, which lists the recipe's files to open them (or their folder in your file manager); the recipe's status, import checks and the bake log. |
 
@@ -480,6 +524,7 @@ returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPale
 | [BitKilnPad](docs/classes/BitKilnPad.md), [BitKilnTrim](docs/classes/BitKilnTrim.md), [BitKilnExtrude](docs/classes/BitKilnExtrude.md), [BitKilnTransform](docs/classes/BitKilnTransform.md), [BitKilnRotate](docs/classes/BitKilnRotate.md), [BitKilnScale](docs/classes/BitKilnScale.md), [BitKilnRepack](docs/classes/BitKilnRepack.md) | Shape ops. |
 | [BitKilnOutline](docs/classes/BitKilnOutline.md), [BitKilnShadow](docs/classes/BitKilnShadow.md), [BitKilnGlow](docs/classes/BitKilnGlow.md), [BitKilnBlur](docs/classes/BitKilnBlur.md), [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md), [BitKilnShade](docs/classes/BitKilnShade.md) | Edge and light ops. |
 | [BitKilnPaletteSwap](docs/classes/BitKilnPaletteSwap.md), [BitKilnQuantize](docs/classes/BitKilnQuantize.md), [BitKilnReduce](docs/classes/BitKilnReduce.md), [BitKilnAdjust](docs/classes/BitKilnAdjust.md), [BitKilnGradientMap](docs/classes/BitKilnGradientMap.md), [BitKilnMaterial](docs/classes/BitKilnMaterial.md) | Color ops. |
+| [BitKilnAnimate](docs/classes/BitKilnAnimate.md), [BitKilnMotion](docs/classes/BitKilnMotion.md) | Animation. |
 | [BitKilnShape](docs/classes/BitKilnShape.md), [BitKilnFxSheet](docs/classes/BitKilnFxSheet.md), [BitKilnRandomSprite](docs/classes/BitKilnRandomSprite.md), [BitKilnNoise](docs/classes/BitKilnNoise.md), [BitKilnRamp](docs/classes/BitKilnRamp.md) | Generators. |
 | [BitKilnAutotile](docs/classes/BitKilnAutotile.md) | The autotile expander. |
 | [BitKilnBaker](docs/classes/BitKilnBaker.md), [BitKilnBaker.Result](docs/classes/BitKilnBaker.Result.md) | Runs recipes and writes their outputs. |
@@ -489,6 +534,7 @@ returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPale
 | [BitKilnFilter](docs/classes/BitKilnFilter.md) | Soft operations for ops: blurs, alpha steps, distances. |
 | [BitKilnSheet](docs/classes/BitKilnSheet.md) | Sprite sheet helpers: frame grid guessing, sprite bounds. |
 | [BitKilnRaster](docs/classes/BitKilnRaster.md) | Pixel-perfect shape masks for generators. |
+| [BitKilnGif](docs/classes/BitKilnGif.md) | Animated GIF encoding. |
 
 ## Limitations
 

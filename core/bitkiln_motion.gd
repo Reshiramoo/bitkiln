@@ -34,6 +34,7 @@ const SWINGING: Array[Effect] = [Effect.SQUASH, Effect.JUMP, Effect.SHAKE, Effec
 ## Effects that keep their last value after [member end] (the others stop).
 const HOLDING: Array[Effect] = [Effect.SPIN, Effect.MOVE, Effect.SCALE, Effect.FADE, Effect.DISSOLVE]
 
+## What the effect does.
 @export var effect := Effect.SQUASH:
 	set(value):
 		effect = value
@@ -105,6 +106,7 @@ func envelope(u: float) -> float:
 	return 1.0
 
 
+## A motion with [param motion_effect] and [param motion_amount], the rest left at their defaults.
 static func create(motion_effect: Effect, motion_amount: float) -> BitKilnMotion:
 	var motion := BitKilnMotion.new()
 	motion.effect = motion_effect

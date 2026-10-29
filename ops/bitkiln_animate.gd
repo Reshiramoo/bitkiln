@@ -26,6 +26,7 @@ enum Layout {
 ## The last frame leads back into the first (time stops one frame short of the end).
 ## Off: the last frame is the end of the animation, for one-shots like a death dissolve.
 @export var loop := true
+## How the frames are arranged when the source has several.
 @export var layout := Layout.ROWS
 ## Fades, blinks and afterimages remove whole pixels in an ordered pattern instead of
 ## making them half transparent.
