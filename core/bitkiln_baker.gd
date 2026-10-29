@@ -214,6 +214,9 @@ static func _write_outputs(recipe: BitKilnRecipe, outputs: Array[BitKilnOutput],
 		seen[path] = true
 		if before_save.is_valid():
 			before_save.call(path, result.files.size())
+		if output.kind == BitKilnOutput.Kind.GIF:
+			_save_bytes(gif_bytes(context, output), path, result)
+			continue
 		var image := palette_image(context.color) if output.kind == BitKilnOutput.Kind.PALETTE \
 			else context.get_layer(layer).to_image()
 		if _save_png(image, path, result):
@@ -338,7 +341,27 @@ static func _check_path(path: String, source_path: String, seen: Dictionary) -> 
 ## Saves [param image] unless the file already holds exactly these bytes. True when the
 ## file is up to date afterwards.
 static func _save_png(image: Image, path: String, result: Result) -> bool:
-	var bytes := image.save_png_to_buffer()
+	return _save_bytes(image.save_png_to_buffer(), path, result)
+
+
+## [param output]'s animated GIF of [param context]'s frames.
+static func gif_bytes(context: BitKilnContext, output: BitKilnOutput) -> PackedByteArray:
+	var empty := empty_frames(context) if output.skip_empty else PackedInt32Array()
+	var frames: Array[Image] = []
+	var image := context.color.to_image()
+	var size := context.frame_size
+	for index in context.frames.x * context.frames.y:
+		if index in empty:
+			continue
+		frames.append(image.get_region(Rect2i(Vector2i(index % context.frames.x, index / context.frames.x) * size, size)))
+	if frames.is_empty():
+		frames.append(image.get_region(Rect2i(Vector2i.ZERO, size)))
+	return BitKilnGif.encode(frames, output.fps, output.loop, output.gif_scale)
+
+
+## Saves [param bytes] unless the file already holds exactly them. True when the file is
+## up to date afterwards.
+static func _save_bytes(bytes: PackedByteArray, path: String, result: Result) -> bool:
 	result.files.append(path)
 	if FileAccess.file_exists(path) and FileAccess.get_file_as_bytes(path) == bytes:
 		return true

@@ -503,7 +503,9 @@ func _on_output_chosen(id: int) -> void:
 		OS.shell_show_in_file_manager(ProjectSettings.globalize_path(path))
 		return
 	EditorInterface.get_file_system_dock().navigate_to_path(path)
-	if ResourceLoader.exists(path):
+	if path.get_extension() == "gif":
+		OS.shell_open(ProjectSettings.globalize_path(path)) # Godot doesn't show GIFs: open the system viewer
+	elif ResourceLoader.exists(path):
 		EditorInterface.edit_resource(load(path))
 
 

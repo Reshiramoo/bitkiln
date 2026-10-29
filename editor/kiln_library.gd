@@ -94,7 +94,10 @@ func bake(recipe: BitKilnRecipe) -> BitKilnBaker.Result:
 		if not old_path in result.files and not old_path in moved and FileAccess.file_exists(old_path):
 			result.warnings.append("%s isn't written any more; delete it if nothing uses it." % old_path)
 	var filesystem := EditorInterface.get_resource_filesystem()
-	var to_import := result.written.duplicate()
+	var to_import := PackedStringArray()
+	for path in result.written:
+		if path.get_extension() == "png": # GIFs aren't imported
+			to_import.append(path)
 	for k in range(1, moved.size(), 2):
 		if moved[k].get_extension() != "tres" and not moved[k] in to_import:
 			to_import.append(moved[k])
@@ -105,6 +108,9 @@ func bake(recipe: BitKilnRecipe) -> BitKilnBaker.Result:
 	if all_known:
 		for path in moved:
 			filesystem.update_file(path)
+		for path in result.written:
+			if not path in to_import:
+				filesystem.update_file(path)
 		if not to_import.is_empty():
 			for path in to_import:
 				filesystem.update_file(path)

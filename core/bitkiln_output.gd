@@ -4,7 +4,7 @@ class_name BitKilnOutput
 extends Resource
 ## A file a [BitKilnRecipe] writes when baked: a layer saved as a PNG, the result's
 ## palette, a [CanvasTexture] that pairs the recipe's color and normal PNGs, the
-## [SpriteFrames] of an animated sheet, or a [TileSet].
+## [SpriteFrames] of an animated sheet, a [TileSet], or an animated GIF.
 
 enum Kind {
 	COLOR, ## The color layer, as a PNG.
@@ -13,6 +13,7 @@ enum Kind {
 	PALETTE, ## Every color of the result, darkest to brightest, as a one-row PNG: usable as a palette by [BitKilnPaletteSwap], [BitKilnQuantize] or Pocket's shaders.
 	SPRITE_FRAMES, ## A [SpriteFrames] [code].tres[/code] for an AnimatedSprite2D, cutting the recipe's Color output into its frames.
 	TILE_SET, ## A [TileSet] [code].tres[/code] with the recipe's Color output as an atlas, one tile per non-empty frame; after a [BitKilnAutotile], with a terrain set up for painting.
+	GIF, ## The frames as an animated GIF, for sharing outside the game.
 }
 enum Animations {
 	ONE, ## Every frame in one animation, row by row.
@@ -43,6 +44,7 @@ const DEFAULT_PATHS := {
 	Kind.PALETTE: "{out}{variant}_palette.png",
 	Kind.SPRITE_FRAMES: "{out}{variant}_frames.tres",
 	Kind.TILE_SET: "{out}{variant}_tiles.tres",
+	Kind.GIF: "{out}{variant}.gif",
 }
 
 ## What to write. Changing it also changes [member path] while it's still a default one.
@@ -65,7 +67,7 @@ const DEFAULT_PATHS := {
 ## with and without a glow.
 @export_storage var skip_ops: Array[BitKilnOp] = []
 
-@export_group("Sprite Frames")
+@export_group("Animation")
 ## How frames are grouped into animations.
 @export var animations := Animations.ONE
 ## Animation names, in order (one per row with Per Row). Missing names are "default" (One)
@@ -77,6 +79,8 @@ const DEFAULT_PATHS := {
 @export var loop := true
 ## Leave out frames with no visible pixels (the unused cells at the end of a sheet).
 @export var skip_empty := true
+## For GIFs: each pixel becomes a block this many pixels wide, so small sprites are easy to see.
+@export_range(1, 16, 1) var gif_scale := 4
 @export_group("Tile Set")
 ## Name of the terrain, after a [BitKilnAutotile]. Empty = the file's name.
 @export var terrain_name := ""
@@ -86,7 +90,11 @@ const DEFAULT_PATHS := {
 
 
 func _validate_property(property: Dictionary) -> void:
-	if property.name in ["animations", "animation_names", "fps", "loop", "skip_empty"] and kind != Kind.SPRITE_FRAMES:
+	if property.name in ["animations", "animation_names"] and kind != Kind.SPRITE_FRAMES:
+		property.usage = PROPERTY_USAGE_STORAGE
+	if property.name in ["fps", "loop", "skip_empty"] and not kind in [Kind.SPRITE_FRAMES, Kind.GIF]:
+		property.usage = PROPERTY_USAGE_STORAGE
+	if property.name == "gif_scale" and kind != Kind.GIF:
 		property.usage = PROPERTY_USAGE_STORAGE
 	if property.name in ["terrain_name", "terrain_color"] and kind != Kind.TILE_SET:
 		property.usage = PROPERTY_USAGE_STORAGE
