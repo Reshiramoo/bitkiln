@@ -305,6 +305,121 @@ static func _noise(x: int, y: int, seed: int) -> float:
 	return float((h ^ (h >> 16)) & 0xFFFF) / 65536.0
 
 
+## Names of the ready-made animations, for [method make_preset].
+static func preset_names() -> PackedStringArray:
+	return PackedStringArray(["Hit Flash", "Damage Blink", "Idle Bob", "Breathe", "Jump", "Collect", "Pulse",
+		"Wobble", "Jelly", "Spin", "Shake", "Teleport", "Death Dissolve"])
+
+
+## A ready-made animation: [code]{"frame_count": int, "loop": bool, "margin": int,
+## "effects": Array[BitKilnMotion]}[/code].
+static func make_preset(preset: String) -> Dictionary:
+	var M := BitKilnMotion
+	var effects: Array[BitKilnMotion] = []
+	var count := 8
+	var looping := true
+	var room := 4
+	var always := _curve([Vector2(0, 1), Vector2(1, 1)]) # loops shouldn't settle down
+	match preset:
+		"Hit Flash":
+			count = 6
+			looping = false
+			var flash := M.create(M.Effect.FLASH, 1.0)
+			flash.end = 0.34
+			var shake := M.create(M.Effect.SHAKE, 2.0)
+			shake.end = 0.6
+			effects = [flash, shake]
+		"Damage Blink":
+			looping = false
+			var blink := M.create(M.Effect.BLINK, 1.0)
+			blink.cycles = 4.0
+			var tint := M.create(M.Effect.TINT, 0.5)
+			tint.color = Color(1.0, 0.25, 0.2)
+			effects = [tint, blink]
+		"Idle Bob":
+			effects = [M.create(M.Effect.JUMP, 1.0)]
+		"Breathe":
+			var squash := M.create(M.Effect.SQUASH, 0.06)
+			effects = [squash]
+		"Jump":
+			count = 10
+			looping = false
+			var crouch := M.create(M.Effect.SQUASH, 0.25)
+			crouch.end = 0.2
+			crouch.cycles = 0.5
+			var hop := M.create(M.Effect.JUMP, 8.0)
+			hop.start = 0.15
+			hop.end = 0.85
+			room = 10
+			var land := M.create(M.Effect.SQUASH, 0.2)
+			land.start = 0.8
+			land.cycles = 0.5
+			effects = [crouch, land, hop]
+		"Collect":
+			looping = false
+			var grow := M.create(M.Effect.SCALE, 0.6)
+			grow.pivot = Vector2(0.5, 0.5)
+			var rise := M.create(M.Effect.MOVE, 6.0)
+			rise.direction = Vector2(0.0, -1.0)
+			var fade := M.create(M.Effect.FADE, 1.0)
+			fade.start = 0.5
+			effects = [grow, rise, fade]
+			room = 9
+		"Pulse":
+			var pulse := M.create(M.Effect.SCALE, 0.2)
+			pulse.pivot = Vector2(0.5, 0.5)
+			pulse.curve = _curve([Vector2(0, 0), Vector2(0.5, 1), Vector2(1, 0)])
+			effects = [pulse]
+		"Wobble":
+			var wobble := M.create(M.Effect.WOBBLE, 10.0)
+			wobble.cycles = 2.0
+			wobble.curve = always
+			effects = [wobble]
+		"Jelly":
+			var skew := M.create(M.Effect.SKEW, 0.15)
+			skew.cycles = 1.0
+			skew.curve = always
+			var squash := M.create(M.Effect.SQUASH, 0.08)
+			squash.cycles = 2.0
+			effects = [squash, skew]
+		"Spin":
+			var spin := M.create(M.Effect.SPIN, 1.0)
+			spin.pivot = Vector2(0.5, 0.5)
+			effects = [spin]
+		"Shake":
+			count = 6
+			var shake := M.create(M.Effect.SHAKE, 1.0)
+			shake.direction = Vector2(1.0, 1.0)
+			shake.curve = always
+			effects = [shake]
+		"Teleport":
+			looping = false
+			var wave := M.create(M.Effect.WAVE, 2.0)
+			wave.cycles = 2.0
+			var fade := M.create(M.Effect.FADE, 1.0)
+			fade.start = 0.3
+			var tint := M.create(M.Effect.TINT, 0.6)
+			tint.color = Color(0.5, 0.8, 1.0)
+			effects = [tint, wave, fade]
+		"Death Dissolve":
+			count = 10
+			looping = false
+			var flash := M.create(M.Effect.FLASH, 1.0)
+			flash.end = 0.1
+			var dissolve := M.create(M.Effect.DISSOLVE, 1.0)
+			dissolve.start = 0.1
+			dissolve.color = Color(1.0, 0.6, 0.2)
+			effects = [flash, dissolve]
+	return {"frame_count": count, "loop": looping, "margin": room, "effects": effects}
+
+
+static func _curve(points: Array[Vector2]) -> Curve:
+	var curve := Curve.new()
+	for point in points:
+		curve.add_point(point)
+	return curve
+
+
 ## A normal map pixel turned clockwise by [param angle] radians.
 static func _turn_normal(c: int, angle: float) -> int:
 	if c == 0 or is_zero_approx(angle):

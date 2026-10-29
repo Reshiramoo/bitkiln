@@ -1,16 +1,40 @@
 @tool
 extends EditorInspectorPlugin
-## Recipe and output helpers in the Inspector: a "Guess Frame Grid" button next to a
-## recipe's Frames, and on each output a checklist of the recipe's ops it uses.
+## Recipe helpers in the Inspector: a "Guess Frame Grid" button next to a recipe's Frames,
+## on each output a checklist of the recipe's ops it uses, and preset menus for ops that
+## have presets.
 
 var current_recipe: Callable # () -> BitKilnRecipe: the recipe shown in the BitKiln dock
 
 
 func _can_handle(object: Object) -> bool:
-	return object is BitKilnRecipe or object is BitKilnOutput
+	return object is BitKilnRecipe or object is BitKilnOutput or object is BitKilnAnimate
+
+
+## A menu that replaces [param target]'s settings with one of [param names]' presets.
+func _add_preset_menu(target: Object, names: PackedStringArray, make: Callable, label: String) -> void:
+	var menu := MenuButton.new()
+	menu.text = label
+	menu.flat = false
+	menu.icon = EditorInterface.get_editor_theme().get_icon(&"Load", &"EditorIcons")
+	menu.tooltip_text = "Replace this op's settings with a ready-made setup (undoable)"
+	for name in names:
+		menu.get_popup().add_item(name)
+	menu.get_popup().index_pressed.connect(func(index: int) -> void:
+		var preset: Dictionary = make.call(names[index])
+		var undo := EditorInterface.get_editor_undo_redo()
+		undo.create_action("Load Preset: %s" % names[index])
+		for key: String in preset:
+			undo.add_do_property(target, key, preset[key])
+			undo.add_undo_property(target, key, target.get(key))
+		undo.commit_action())
+	add_custom_control(menu)
 
 
 func _parse_begin(object: Object) -> void:
+	if object is BitKilnAnimate:
+		_add_preset_menu(object, BitKilnAnimate.preset_names(), BitKilnAnimate.make_preset, "Animation Presets")
+		return
 	var output := object as BitKilnOutput
 	if output == null:
 		return
