@@ -26,14 +26,22 @@ don't need the plugin, and the original art is never touched.
   textures and hue-shifted palette ramps.
 - **Tiles**: a 47-tile blob set built from five hand-drawn tiles, written as a `TileSet` with the
   terrain already set up.
-- **Bake Material**: freeze any CanvasItem shader (Pocket's `sprite_fx`, your own) into the PNG.
+- **Bake Material**: freeze any CanvasItem shader (a hit flash, a dissolve, your own) into the PNG.
 - **Editor tools**: a dock with a live preview (side by side, lit by a light that follows the
   mouse), bake status for every recipe, pixel-art import checks, and a Lospec palette importer.
 
-![The BitKiln dock](docs/images/dock.png)
+![The BitKiln dock: a recipe's source and its blue variant side by side, playing its Jelly animation](docs/images/dock.png)
+
+| Animate: Jelly | Particles: Fire | FX sheet: Impact | Animate: Death Dissolve |
+|---|---|---|---|
+| ![Animate: Jelly](docs/images/gallery/anim_jelly.gif) | ![Particles: Fire](docs/images/gallery/particles_fire.gif) | ![FX sheet: Impact](docs/images/gallery/fx_impact.gif) | ![Animate: Death Dissolve](docs/images/gallery/anim_death_dissolve.gif) |
+
+Every image on this page was baked by BitKiln itself, from a flat 16×16 slime, a sword, or a blank
+canvas. Each section shows the ops behind its pictures.
 
 ## Contents
 
+- [Requirements](#requirements)
 - [Installation](#installation)
 - [Quick start](#quick-start)
 - [Recipes](#recipes)
@@ -66,8 +74,18 @@ don't need the plugin, and the original art is never touched.
 - [Using recipes from code](#using-recipes-from-code)
   - [Writing your own op](#writing-your-own-op)
 - [Class reference](#class-reference)
+- [Troubleshooting](#troubleshooting)
 - [Limitations](#limitations)
 - [License](#license)
+
+## Requirements
+
+- Godot **4.6** or later (it uses the editor dock API added in 4.6).
+- Any renderer. Bake Material renders through the GPU and has been tested with Compatibility;
+  every other op runs on the CPU.
+- BitKiln is an editor tool: baked outputs are plain PNGs and `.tres` resources, so exported games
+  don't need it. Running recipes at runtime ([Using recipes from code](#using-recipes-from-code))
+  is the exception.
 
 ## Installation
 
@@ -132,7 +150,7 @@ changes every frame by the same amount so the grid stays regular.
 | **Color** | The result, as a PNG. |
 | **Normal** | The normal map from a [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md), as a PNG. |
 | **Canvas Texture** | A `CanvasTexture` `.tres` pairing the recipe's Color and Normal outputs, with the nearest filter: drop it on a Sprite2D and it reacts to 2D lights. Needs a Color and a Normal output in the same recipe. |
-| **Palette** | Every color of the result, darkest first, as a one-row PNG: a palette for Palette Swap, Quantize or Pocket's shaders. |
+| **Palette** | Every color of the result, darkest first, as a one-row PNG: a palette for Palette Swap, Quantize or palette shaders. |
 | **Sprite Frames** | A `SpriteFrames` `.tres` for an AnimatedSprite2D, cut from the Color output: one animation, or one per row (named, looping or not), leaving out empty cells. Plays at the speed of the recipe's animation unless **Fps** is set (see [Frame counts and speed](#frame-counts-and-speed)). See [Sprite sheets](#sprite-sheets). |
 | **Tile Set** | A `TileSet` `.tres` with the Color output as an atlas, one tile per non-empty frame; after an Autotile op, with a terrain set up for painting. See [Autotiles](#autotiles). |
 | **GIF** | The frames as an animated GIF (at the animation's speed or its own **Fps**, looping, empty frames left out, each pixel scaled up by **Gif Scale**), for sharing outside the game. |
@@ -180,7 +198,7 @@ no longer writes are listed in the log for you to delete.
 | [BitKilnScale](docs/classes/BitKilnScale.md) | Scales up with a pixel-art scaler (see [Scalers](#scalers)). |
 | [BitKilnRepack](docs/classes/BitKilnRepack.md) | Rearranges or picks frames (see [Sprite sheets](#sprite-sheets)). |
 | **Edges and light** | |
-| [BitKilnOutline](docs/classes/BitKilnOutline.md) | Outer or inner outline, 1–8 px, round / square / diamond (the same shapes as Pocket's `sprite_fx` shader). **Selective** coloring ("sel-out") colors each outline pixel with a darker version of the sprite color next to it. |
+| [BitKilnOutline](docs/classes/BitKilnOutline.md) | Outer or inner outline, 1–8 px, round / square / diamond. **Selective** coloring ("sel-out") colors each outline pixel with a darker version of the sprite color next to it. |
 | [BitKilnShadow](docs/classes/BitKilnShadow.md) | Hard drop shadow behind the sprite; with a length above 1, a long shadow. |
 | [BitKilnGlow](docs/classes/BitKilnGlow.md) | A halo in crisp rings around the sprite or its bright pixels (see [Glow and blur](#glow-and-blur)). |
 | [BitKilnBlur](docs/classes/BitKilnBlur.md) | Box, gaussian or motion blur with the soft edges snapped to a few alpha levels. |
@@ -227,7 +245,7 @@ change the image's size can't be masked.
 
 Palette Swap reads palettes in two forms:
 
-- **Two rows**, as used by Pocket's `sprite_fx` palette swap: row 0 holds the colors to find, row 1
+- **Two rows**, the layout many palette swap shaders use: row 0 holds the colors to find, row 1
   their replacements.
 - **One row** of replacements for the colors in the op's `base_palette`, in the same order. Lospec
   palettes work this way: BitKiln imports `.hex`, `.gpl` (GIMP, Aseprite) and `.pal` (JASC) files
@@ -238,9 +256,14 @@ after the palette's file: `slime.png` with `red.hex` and `blue.hex` bakes `slime
 `slime_baked_blue.png`. Ops after the swap run on every variant, and the dock's variant menu
 shows each one.
 
+![One recipe, five variants: the original and four palettes](docs/images/gallery/palette_variants.png)
+
+*One recipe: Pad, a Palette Swap with four two-row palettes and `keep_original` on, then Shade and a
+selective Outline, which run on every variant.*
+
 Bake palette swaps for variants that never change at runtime (shiny forms, enemy tiers, team
 colors): they cost nothing in the game, leave the sprite's material free, and work on any node.
-Keep Pocket's live palette swap for colors chosen or animated at runtime (character
+Keep a palette swap shader for colors chosen or animated at runtime (character
 customization, palette cycling).
 
 ### Scalers
@@ -252,6 +275,11 @@ customization, palette cycling).
 | **Scale4x** | Scale2x twice. |
 | **MMPX** | 2×, style-preserving (McGuire and Gagiu, 2021): builds on Scale2x with rules for lines, slopes and single-pixel details, so results look closer to hand-drawn. |
 | **MMPX 4x** | MMPX twice. |
+
+![The same slime scaled 2× with Nearest, Scale2x and MMPX](docs/images/gallery/scalers.png)
+
+*The outlined slime at 2× with Nearest, Scale2x and MMPX. Scale2x rounds every staircase,
+including the eyes; MMPX keeps single-pixel details like the eye glints.*
 
 None of them add colors, so the result stays in your palette. A normal map layer is scaled
 nearest alongside the colors.
@@ -269,6 +297,11 @@ characters, 16 for vehicles. With the **Variants** layout each direction bakes t
 output with one animation per row. **Expand** grows frames to fit the rotated corners, the same
 size for every angle. Normal maps rotate with the colors.
 
+![A 16×16 sword in eight directions](docs/images/gallery/rotsprite.png)
+
+*A 16×16 sword with **Directions** 8 and a selective Outline after the rotation, so every direction
+gets a clean 1 px edge.*
+
 ### Normal maps
 
 [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md) builds a height map, then turns its slopes into normals:
@@ -279,6 +312,8 @@ size for every angle. Normal maps rotate with the colors.
 - **Snapping**: `snap_directions` (8 by default) and `snap_steepness` limit the normals to a few
   directions and steepnesses. Lights then fall on the sprite in clean bands, the way a pixel artist
   shades, instead of smooth gradients. 0 directions turns it off.
+
+![The flat slime and its normal map](docs/images/gallery/normal_map.png)
 
 Normals follow Godot's convention (green = up); `flip_green` gives DirectX's. Switch the dock's
 layer menu to **Lit** to see the sprite shaded by a light that follows the mouse.
@@ -294,6 +329,11 @@ or darker. With a **Palette**, every shade snaps to its nearest color.
 The shape comes from a [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md) before it (whose
 snapping decides how the bands fall), or from a smooth rounded one made just for shading. The
 **Rim Light** group adds a thin edge of light on the edges facing **Rim Direction**.
+
+![The flat source; after Shade; after a selective Outline; after a Shadow](docs/images/gallery/shade_outline.png)
+
+*Left to right: the flat source (with a Pad for room), then BitKilnShade with its defaults, then a
+selective BitKilnOutline, then a BitKilnShadow.*
 
 ### Glow and blur
 
@@ -339,10 +379,10 @@ Like other ops, it takes a [mask](#masks), and the recipe bakes again when the t
 ### Baking a material
 
 [BitKilnMaterial](docs/classes/BitKilnMaterial.md) renders the image through a CanvasItem material
-and keeps the result: tune an effect live with a shader (Pocket's `sprite_fx`, a palette shader,
+and keeps the result: tune an effect live with a shader (a hit flash, a palette shader,
 your own), then freeze it into the PNG so the game doesn't run the shader. **Parameters** overrides
-shader parameters for this bake only (`{"flash_amount": 1.0}`), and the `sheet_frames` uniform used
-by Pocket's shaders is set to the frame grid. The material itself is never changed.
+shader parameters for this bake only (`{"flash_amount": 1.0}`), and a `sheet_frames` uniform
+(`vec2`: columns and rows), if the shader has one, is set to the frame grid. The material itself is never changed.
 
 It needs a renderer, so it works in the editor and in games but skips itself (with a warning) in
 `--headless` runs. Effects that change over time are caught at an arbitrary moment, and effects
@@ -384,6 +424,12 @@ animate with the colors.
 step: Hit Flash, Damage Blink, Idle Bob, Breathe, Jump, Collect, Pulse, Wobble, Jelly, Spin, Shake,
 Teleport and Death Dissolve. Presets set the **Duration** and leave **Fps** as you have it. Add a
 Sprite Frames output to play the result in the game, or a GIF output to share it.
+
+| Jump | Jelly | Hit Flash | Death Dissolve |
+|---|---|---|---|
+| ![Jump](docs/images/gallery/anim_jump.gif) | ![Jelly](docs/images/gallery/anim_jelly.gif) | ![Hit Flash](docs/images/gallery/anim_hit_flash.gif) | ![Death Dissolve](docs/images/gallery/anim_death_dissolve.gif) |
+
+*Presets on the shaded, outlined slime, at 12 fps.*
 
 ## Frame counts and speed
 
@@ -460,6 +506,12 @@ ordered pattern, so a sheet stays in a handful of colors.
 **Particle Presets**, a menu on the op in the Inspector, loads Fire, Smoke, Sparks, Explosion,
 Magic, Dust, Rain, Snow, Confetti or Bubbles (tuned for 32×32 frames) in one undoable step.
 
+| Fire | Magic | Explosion | Snow |
+|---|---|---|---|
+| ![Fire](docs/images/gallery/particles_fire.gif) | ![Magic](docs/images/gallery/particles_magic.gif) | ![Explosion](docs/images/gallery/particles_explosion.gif) | ![Snow](docs/images/gallery/particles_snow.gif) |
+
+*Presets on a blank 32×32 canvas, unchanged.*
+
 ## Generators
 
 Generators are ops that draw. On a recipe without a source ("New BitKiln Canvas" on a folder),
@@ -490,6 +542,12 @@ Each pixel gets a heat from the hot core to the fading edge, colored by **Colors
 points sit at 0, 1/n, 2/n… for n steps, every band is exactly one of its colors. **Count**,
 **Scale**, **Seed** and a **Timing** curve shape the effect.
 
+| Impact | Slash | Sparkle | Ring |
+|---|---|---|---|
+| ![Impact](docs/images/gallery/fx_impact.gif) | ![Slash](docs/images/gallery/fx_slash.gif) | ![Sparkle](docs/images/gallery/fx_sparkle.gif) | ![Ring](docs/images/gallery/fx_ring.gif) |
+
+*Each effect with its default settings on a blank 32×32 canvas.*
+
 ### Random sprites
 
 [BitKilnRandomSprite](docs/classes/BitKilnRandomSprite.md) makes a different random sprite in every
@@ -498,6 +556,10 @@ following a density map, mirrored (**Horizontal**, **Vertical** or **Both**), ke
 shaded from top to bottom and outlined. Colors come from ramps of a **Palette**, or from a random
 hue per sprite. Frame n uses seed + n, so an 8×8 grid gives 64 sprites, and the same seed always
 gives the same set: keep the ones you like, or bake a fresh set for procedural enemies and loot.
+
+![Sixteen random creatures from seed 7](docs/images/gallery/random_creatures.png)
+
+*Creature, seed 7, on an 8×2 frame grid of 16×16 frames.*
 
 ### Noise and ramps
 
@@ -643,6 +705,19 @@ returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPale
 | [BitKilnSheet](docs/classes/BitKilnSheet.md) | Sprite sheet helpers: frame grid guessing, sprite bounds. |
 | [BitKilnRaster](docs/classes/BitKilnRaster.md) | Pixel-perfect shape masks for generators. |
 | [BitKilnGif](docs/classes/BitKilnGif.md) | Animated GIF encoding. |
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Baked sprites look blurry in the game | The project's default texture filter isn't **Nearest**. The dock's side panel warns about it, with a **Fix** button. |
+| Colors in the game are slightly off | The PNG is imported with lossy or VRAM compression. Use the side panel's **Fix**, or set the file's import to **Lossless**. |
+| Outlines, shadows or glows are cut off | They have nowhere to go: put a [BitKilnPad](docs/classes/BitKilnPad.md) before them. On sheets, ops stop at frame edges on purpose. |
+| A recipe didn't bake again after I changed the source | `auto_bake` is off, or Godot hasn't reimported the file yet (it does when the editor window regains focus). Click **Bake** to force it. |
+| "the color PNG isn't imported yet; bake again" | A Sprite Frames, Canvas Texture or Tile Set output needs its PNG imported first. Bake once more. |
+| Every recipe shows as changed after cloning the project | Bake records live in `.godot/editor`, which isn't committed. **Bake All Stale** once, or run `tools/bake_all.gd` in CI. |
+| Bake Material does nothing in a build script | It needs a renderer, so `--headless` runs skip it with a warning. Bake it in the editor. |
+| The preview is slow | Large sheets with 4× scalers or RotSprite take a while. Turn those ops off with their **Enabled** switch while tuning the others. |
 
 ## Limitations
 
