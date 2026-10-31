@@ -351,7 +351,8 @@ that draw outside the sprite need a Pad before it.
 [BitKilnAnimate](docs/classes/BitKilnAnimate.md) turns a still sprite into an animated sheet, the
 way tools like Juice FX do, but inside the recipe: outlines, palettes and scalers can come before
 or after it. Each source frame becomes a row of frames (see [Frame counts and speed](#frame-counts-and-speed)),
-so a sheet of poses gets an animation per pose. **Effects** is a stack of [BitKilnMotion](docs/classes/BitKilnMotion.md)s,
+so a sheet of poses gets an animation per pose; after Particles or an FX sheet, it runs across
+their animation instead. **Effects** is a stack of [BitKilnMotion](docs/classes/BitKilnMotion.md)s,
 applied in order:
 
 | Effect | What it does |
@@ -400,8 +401,22 @@ whole animation (squashes, hops, wobbles, blinks) get the same number of frames 
 blinks in 0.8 s at 10 fps make 6 frames instead of 8.
 
 Particles and FX sheets make their own frames when they start from a single frame (a blank canvas,
-or a sprite), so leave the recipe's **Frames** at 1×1. Over a sheet that already has several frames
-(after an Animate, say), they draw on those frames instead.
+or a sprite), so leave the recipe's **Frames** at 1×1. Over a source sheet that already has several
+frames, they draw on those frames instead.
+
+**Stacking animated ops.** The first op that animates the image sets its frames and speed; animated
+ops after it work on that animation instead of making their own:
+
+- Particles or an FX sheet after an Animate draw on its frames, at its speed.
+- An Animate after Particles or an FX sheet runs its effects across their frames (a flash over a
+  burst, a squash over a magic loop), at their speed. With **Frame Count** set, it resamples the
+  animation to that many frames.
+
+The Inspector note under Frame Count says when an op follows the animation before it. Animate's
+**Source Frames** decides how it reads the frames coming in: **Auto** (an animation when an earlier
+op made one, poses otherwise), **Poses** (each frame gets its own animation, for a sheet of
+poses) or **Animation** (for a source sheet that's already an animation, like a walk cycle,
+played at the op's **Fps**).
 
 Sprite Frames and GIF outputs play at the same speed: their **Fps** is 0 by default, which means
 the fps of the last animating op they use (10 without one). Set it to play an output at another

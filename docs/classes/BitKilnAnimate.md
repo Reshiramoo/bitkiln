@@ -2,7 +2,7 @@
 
 **Inherits:** [BitKilnOp](BitKilnOp.md)
 
-Turns a still sprite into an animation: hit flashes, squash and stretch, hops, shakes, wobbles, spins, waves, fades, dissolves and afterimages, from a stack of [BitKilnMotion](BitKilnMotion.md) effects. Each frame of the source becomes a row of frames (so a sheet of poses gets an animation per pose).
+Turns a still sprite into an animation: hit flashes, squash and stretch, hops, shakes, wobbles, spins, waves, fades, dissolves and afterimages, from a stack of [BitKilnMotion](BitKilnMotion.md) effects. Each frame of the source becomes a row of frames (so a sheet of poses gets an animation per pose). After an op that already animated the image (a [BitKilnParticles](BitKilnParticles.md), say), it applies its effects across that animation instead, keeping its frames and speed (see [source_frames](#property-source_frames)).
 
 ## Description
 
@@ -20,18 +20,28 @@ How many frames: set how long the animation lasts ([duration](#property-duration
 | [Layout](#enum-layout) | [layout](#property-layout) | `ROWS` |
 | bool | [loop](#property-loop) | `true` |
 | int | [margin](#property-margin) | `4` |
+| [SourceFrames](#enum-sourceframes) | [source_frames](#property-source_frames) | `AUTO` |
 
 ## Methods
 
 | Return | Signature |
 |---|---|
+| bool | [follows_animation](#method-follows_animation)(earlier: float) |
 | float | [get_duration](#method-get_duration)() |
 | float | [get_fps](#method-get_fps)() |
 | int | [get_frame_count](#method-get_frame_count)() |
 | Dictionary | [make_preset](#method-make_preset)(preset: String) static |
-| PackedStringArray | [preset_names](#method-preset_names)() static |
+| float | [playback_fps](#method-playback_fps)(earlier: float) |
+| [PackedStringArray](https://docs.godotengine.org/en/stable/classes/class_packedstringarray.html) | [preset_names](#method-preset_names)() static |
 
 ## Enumerations
+
+<a id="enum-sourceframes"></a>
+### enum SourceFrames
+
+- **AUTO** = `0`: An animation when an earlier op made one ([BitKilnParticles](BitKilnParticles.md), [BitKilnFxSheet](BitKilnFxSheet.md), another Animate), poses otherwise.
+- **POSES** = `1`: Each frame is a still pose that gets its own animation.
+- **ANIMATION** = `2`: The frames are already an animation, played at [fps](#property-fps): the effects run across them.
 
 <a id="enum-layout"></a>
 ### enum Layout
@@ -95,7 +105,21 @@ The last frame leads back into the first (time stops one frame short of the end)
 
 Transparent pixels added on every side of each frame, so the sprite can move and grow.
 
+---
+
+<a id="property-source_frames"></a>
+### [SourceFrames](#enum-sourceframes) source_frames = `AUTO`
+
+What the frames coming into the op are. An animation keeps its frames (with [frame_count](#property-frame_count) at Auto) and, when an earlier op made it, its speed.
+
 ## Method Descriptions
+
+<a id="method-follows_animation"></a>
+### bool follows_animation(earlier: float)
+
+Whether the frames coming in are treated as an animation, given the speed `earlier` ops gave them (0 when they didn't animate it).
+
+---
 
 <a id="method-get_duration"></a>
 ### float get_duration()
@@ -124,7 +148,12 @@ A ready-made animation: [code]{"duration": float, "frame_count": 0 (Auto), "loop
 
 ---
 
+<a id="method-playback_fps"></a>
+### float playback_fps(earlier: float)
+
+---
+
 <a id="method-preset_names"></a>
-### PackedStringArray preset_names() static
+### [PackedStringArray](https://docs.godotengine.org/en/stable/classes/class_packedstringarray.html) preset_names() static
 
 Names of the ready-made animations, for [make_preset()](#method-make_preset).

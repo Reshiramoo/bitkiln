@@ -25,9 +25,9 @@ Ops change a [BitKilnContext](BitKilnContext.md) in place. An op that turns one 
 | void | [_apply](#method-_apply)(_context: [BitKilnContext](BitKilnContext.md)) |
 | float | [get_fps](#method-get_fps)() |
 | bool | [is_solid](#method-is_solid)(pixel: int, alpha_threshold: int) static |
-| PackedByteArray | [mask_pixels](#method-mask_pixels)(context: [BitKilnContext](BitKilnContext.md)) |
+| [PackedByteArray](https://docs.godotengine.org/en/stable/classes/class_packedbytearray.html) | [mask_pixels](#method-mask_pixels)(context: [BitKilnContext](BitKilnContext.md)) |
+| float | [playback_fps](#method-playback_fps)(earlier: float) |
 | Array[[BitKilnContext](BitKilnContext.md)] | [process](#method-process)(context: [BitKilnContext](BitKilnContext.md)) |
-| Array[[BitKilnContext](BitKilnContext.md)] | [_process](#method-_process)(context: [BitKilnContext](BitKilnContext.md)) |
 
 ## Property Descriptions
 
@@ -88,9 +88,16 @@ Whether `pixel` counts as part of the sprite: alpha at least `alpha_threshold` (
 ---
 
 <a id="method-mask_pixels"></a>
-### PackedByteArray mask_pixels(context: [BitKilnContext](BitKilnContext.md))
+### [PackedByteArray](https://docs.godotengine.org/en/stable/classes/class_packedbytearray.html) mask_pixels(context: [BitKilnContext](BitKilnContext.md))
 
 1 for each pixel of `context`'s layers inside the mask, 0 outside; empty when there's no usable mask.
+
+---
+
+<a id="method-playback_fps"></a>
+### float playback_fps(earlier: float)
+
+Frames per second the image plays at after this op, given the speed `earlier` ops gave it (0 when none of them animated it): [get_fps()](#method-get_fps) for ops that animate, the earlier speed for the rest.
 
 ---
 
@@ -98,10 +105,3 @@ Whether `pixel` counts as part of the sprite: alpha at least `alpha_threshold` (
 ### Array[[BitKilnContext](BitKilnContext.md)] process(context: [BitKilnContext](BitKilnContext.md))
 
 Runs the op, then puts back the pixels outside the [mask](#property-mask). Returns the contexts that continue: usually `context` itself.
-
----
-
-<a id="method-_process"></a>
-### Array[[BitKilnContext](BitKilnContext.md)] _process(context: [BitKilnContext](BitKilnContext.md))
-
-The contexts that continue after this op: `context` itself, changed by [_apply()](#method-_apply), unless overridden.

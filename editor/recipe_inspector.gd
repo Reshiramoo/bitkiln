@@ -34,8 +34,18 @@ static func fps_text(fps: float) -> String:
 	return str(roundi(fps)) if is_equal_approx(fps, roundf(fps)) else "%.1f" % fps
 
 
-## "Auto: 8 frames = 0.80 s at 10 fps" for an op that animates.
-static func timing_note(op: Variant) -> String:
+## "Auto: 8 frames = 0.80 s at 10 fps" for an op that animates, or how it follows the
+## animation an earlier op of [param recipe] made.
+static func timing_note(op: Variant, recipe: BitKilnRecipe = null) -> String:
+	var index := recipe.ops.find(op) if recipe != null else -1
+	var earlier := recipe.fps_before(index) if index >= 0 else 0.0
+	if earlier > 0.0:
+		if not op is BitKilnAnimate:
+			return "Draws on the animation before it, at its %s fps." % fps_text(earlier)
+		if op.follows_animation(earlier):
+			if op.frame_count > 0:
+				return "%d frames, resampling the animation before it, at %s fps." % [op.frame_count, fps_text(earlier)]
+			return "Runs across the animation before it: its frames, at %s fps." % fps_text(earlier)
 	var count: int = op.get_frame_count()
 	var text := "%d frames = %.2f s at %s fps" % [count, op.get_duration(), fps_text(op.get_fps())]
 	return ("Auto: " + text) if op.frame_count == 0 else text
@@ -110,7 +120,9 @@ func _parse_property(object: Object, _type: Variant.Type, name: String, _hint_ty
 		var tooltip := "Set Frame Count to 0 for Auto: Duration × Fps."
 		if not object is BitKilnAnimate:
 			tooltip += "\nOver a sheet that already has several frames, the op draws on those instead."
-		_add_live_note(func() -> String: return timing_note(op), tooltip)
+		tooltip += "\nAfter an op that already animated the image, it follows that animation's frames and speed."
+		_add_live_note(func() -> String:
+			return timing_note(op, current_recipe.call() if current_recipe.is_valid() else null), tooltip)
 		return false
 	var output := object as BitKilnOutput
 	if output != null and name == "loop" and output.kind in [BitKilnOutput.Kind.SPRITE_FRAMES, BitKilnOutput.Kind.GIF]:

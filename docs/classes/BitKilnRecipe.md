@@ -26,6 +26,7 @@ Every source goes through the same ops and gets its own files, so one recipe can
 | Return | Signature |
 |---|---|
 | [BitKilnBaker.Result](BitKilnBaker.Result.md) | [bake](#method-bake)() |
+| float | [fps_before](#method-fps_before)(index: int, output: [BitKilnOutput](BitKilnOutput.md) = null) |
 | float | [get_fps](#method-get_fps)(output: [BitKilnOutput](BitKilnOutput.md) = null) |
 | String | [get_naming_path](#method-get_naming_path)(index: int = 0) |
 | int | [get_run_count](#method-get_run_count)() |
@@ -101,10 +102,17 @@ Runs the ops on every source and writes the outputs; see [BitKilnBaker.bake()](B
 
 ---
 
+<a id="method-fps_before"></a>
+### float fps_before(index: int, output: [BitKilnOutput](BitKilnOutput.md) = null)
+
+The speed the enabled ops before op number `index` give the image (that `output` uses, when given); 0 when none of them animates it.
+
+---
+
 <a id="method-get_fps"></a>
 ### float get_fps(output: [BitKilnOutput](BitKilnOutput.md) = null)
 
-Frames per second `output` plays at: its own [BitKilnOutput.fps](BitKilnOutput.md#property-fps) when set, otherwise the fps of the last enabled op that animates ([BitKilnOp.get_fps()](BitKilnOp.md#method-get_fps)) and that the output uses, otherwise 10. Without an output, the speed the ops are made for.
+Frames per second `output` plays at: its own [BitKilnOutput.fps](BitKilnOutput.md#property-fps) when set, otherwise the speed the enabled ops it uses give the image (see [BitKilnOp.playback_fps()](BitKilnOp.md#method-playback_fps): the op that first animates it sets the speed, and ops that animate it further keep it), otherwise 10. Without an output, the speed the ops give.
 
 ---
 

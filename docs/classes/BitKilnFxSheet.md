@@ -32,6 +32,7 @@ How many frames: set how long the effect lasts ([duration](#property-duration)) 
 | float | [get_duration](#method-get_duration)() |
 | float | [get_fps](#method-get_fps)() |
 | int | [get_frame_count](#method-get_frame_count)() |
+| float | [playback_fps](#method-playback_fps)(earlier: float) |
 
 ## Enumerations
 
@@ -106,7 +107,7 @@ Frames per second the effect is made for. Sprite Frames and GIF outputs play at 
 <a id="property-frame_count"></a>
 ### int frame_count = `0`
 
-Frames to make. 0 = Auto: [duration](#property-duration) × [fps](#property-fps). Ignored over a sheet that already has several frames.
+Frames to make. 0 = Auto: [duration](#property-duration) × [fps](#property-fps). Ignored over a sheet that already has several frames, or an animation made by an earlier op.
 
 ---
 
@@ -147,3 +148,8 @@ Seconds the frames the op makes cover, playing at [fps](#property-fps).
 ### int get_frame_count()
 
 How many frames the op makes from a single frame: [frame_count](#property-frame_count), or with Auto, [duration](#property-duration) × [fps](#property-fps).
+
+---
+
+<a id="method-playback_fps"></a>
+### float playback_fps(earlier: float)

@@ -8,8 +8,9 @@ extends BitKilnOp
 ## How many frames: set how long the effect lasts ([member duration]) and the speed it plays
 ## at ([member fps]), and [member frame_count] at Auto works out the count. Starting from
 ## one frame (a blank canvas, or a sprite the particles go over), the op makes that many
-## frames in a row, so the result plays at real speed. Over a sheet that already has several
-## frames (after a [BitKilnAnimate], say), it draws on those instead, spreading
+## frames in a row, so the result plays at real speed. After an op that already animated the
+## image (a [BitKilnAnimate], say), it draws on that animation's frames at its speed instead.
+## Over a source sheet that already has several frames, it draws on those, spreading
 ## [member duration] over them.
 ##
 ## The same settings always give the same sheet: every particle's randomness comes from
@@ -47,7 +48,7 @@ enum Blend {
 ## speed unless they set their own, and so does the BitKiln dock's preview.
 @export_range(1.0, 60.0, 0.5, "or_greater", "suffix:fps") var fps := 10.0
 ## Frames to make. 0 = Auto: [member duration] × [member fps]. Ignored over a sheet that
-## already has several frames.
+## already has several frames, or an animation made by an earlier op.
 @export_range(0, 256, 1, "or_greater") var frame_count := 0:
 	set(value):
 		frame_count = maxi(value, 0)
@@ -133,6 +134,10 @@ func get_fps() -> float:
 	return fps
 
 
+func playback_fps(earlier: float) -> float:
+	return earlier if earlier > 0.0 else fps
+
+
 ## How many frames the op makes from a single frame: [member frame_count], or with Auto,
 ## [member duration] × [member fps].
 func get_frame_count() -> int:
@@ -145,12 +150,16 @@ func get_duration() -> float:
 
 
 func _apply(context: BitKilnContext) -> void:
+	var earlier := float(context.meta.get("fps", 0.0))
 	var span := duration
 	if context.frames == Vector2i.ONE:
 		context.repeat_frame(get_frame_count())
 		span = get_duration()
 	var size := context.frame_size
 	var total := context.frames.x * context.frames.y
+	if earlier > 0.0 and total > 1:
+		span = total / earlier # an earlier op's animation: keep to its speed
+	context.meta["fps"] = playback_fps(earlier)
 	var gradient := colors if colors != null else _default_colors()
 	var colors_of_palette := BitKilnPalette.load_colors(palette) if palette != null else PackedInt32Array()
 	var sprite_image := BitKilnBaker.load_texture_image(sprite) if shape == Shape.SPRITE and sprite != null else null

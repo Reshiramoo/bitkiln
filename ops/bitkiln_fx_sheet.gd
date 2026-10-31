@@ -36,7 +36,7 @@ enum Effect {
 ## speed unless they set their own, and so does the BitKiln dock's preview.
 @export_range(1.0, 60.0, 0.5, "or_greater", "suffix:fps") var fps := 10.0
 ## Frames to make. 0 = Auto: [member duration] × [member fps]. Ignored over a sheet that
-## already has several frames.
+## already has several frames, or an animation made by an earlier op.
 @export_range(0, 64, 1, "or_greater") var frame_count := 0:
 	set(value):
 		frame_count = maxi(value, 0)
@@ -73,6 +73,10 @@ func get_fps() -> float:
 	return fps
 
 
+func playback_fps(earlier: float) -> float:
+	return earlier if earlier > 0.0 else fps
+
+
 ## How many frames the op makes from a single frame: [member frame_count], or with Auto,
 ## [member duration] × [member fps].
 func get_frame_count() -> int:
@@ -86,6 +90,7 @@ func get_duration() -> float:
 
 func _apply(context: BitKilnContext) -> void:
 	context.repeat_frame(get_frame_count())
+	context.meta["fps"] = playback_fps(float(context.meta.get("fps", 0.0)))
 	var size := context.frame_size
 	var total := context.frames.x * context.frames.y
 	var gradient := colors if colors != null else _default_colors()

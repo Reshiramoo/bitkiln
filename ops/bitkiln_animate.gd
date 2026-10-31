@@ -5,7 +5,9 @@ extends BitKilnOp
 ## Turns a still sprite into an animation: hit flashes, squash and stretch, hops, shakes,
 ## wobbles, spins, waves, fades, dissolves and afterimages, from a stack of
 ## [BitKilnMotion] effects. Each frame of the source becomes a row of frames (so a sheet
-## of poses gets an animation per pose).
+## of poses gets an animation per pose). After an op that already animated the image (a
+## [BitKilnParticles], say), it applies its effects across that animation instead, keeping
+## its frames and speed (see [member source_frames]).
 ##
 ## How many frames: set how long the animation lasts ([member duration]) and the speed it
 ## plays at ([member fps]), and [member frame_count] at Auto works out the count. Sprite
@@ -16,6 +18,11 @@ extends BitKilnOp
 ## making them half transparent. Effects apply in order, so a squash then a spin squashes
 ## first. Frames grow by [member margin] on every side to give the motion room.
 
+enum SourceFrames {
+	AUTO, ## An animation when an earlier op made one ([BitKilnParticles], [BitKilnFxSheet], another Animate), poses otherwise.
+	POSES, ## Each frame is a still pose that gets its own animation.
+	ANIMATION, ## The frames are already an animation, played at [member fps]: the effects run across them.
+}
 enum Layout {
 	ROWS, ## Each source frame gets its own row of frames.
 	STRIP, ## All frames in one row, source frame after source frame.
@@ -40,6 +47,9 @@ enum Layout {
 ## The last frame leads back into the first (time stops one frame short of the end).
 ## Off: the last frame is the end of the animation, for one-shots like a death dissolve.
 @export var loop := true
+## What the frames coming into the op are. An animation keeps its frames (with
+## [member frame_count] at Auto) and, when an earlier op made it, its speed.
+@export var source_frames := SourceFrames.AUTO
 @export_group("")
 
 ## Transparent pixels added on every side of each frame, so the sprite can move and grow.
@@ -58,6 +68,16 @@ func _validate_property(property: Dictionary) -> void:
 
 func get_fps() -> float:
 	return fps
+
+
+func playback_fps(earlier: float) -> float:
+	return earlier if earlier > 0.0 and source_frames != SourceFrames.POSES else fps
+
+
+## Whether the frames coming in are treated as an animation, given the speed [param earlier]
+## ops gave them (0 when they didn't animate it).
+func follows_animation(earlier: float) -> bool:
+	return source_frames == SourceFrames.ANIMATION or source_frames == SourceFrames.AUTO and earlier > 0.0
 
 
 ## How many frames each source frame becomes: [member frame_count], or with Auto,
@@ -111,22 +131,36 @@ func _cycle_step() -> int:
 
 
 func _apply(context: BitKilnContext) -> void:
+	var earlier := float(context.meta.get("fps", 0.0))
+	var timeline := follows_animation(earlier)
 	var source_size := context.frame_size
 	var in_count := context.frames.x * context.frames.y
 	var count := get_frame_count()
+	if timeline and frame_count == 0:
+		count = in_count
+	# A pose animation per source frame, or one animation running across the source frames.
+	var rows := 1 if timeline else in_count
 	var out_size := source_size + Vector2i(margin, margin) * 2
-	var grid := Vector2i(count, in_count) if layout == Layout.ROWS else Vector2i(count * in_count, 1)
+	var grid := Vector2i(count, rows) if layout == Layout.ROWS else Vector2i(count * rows, 1)
 	var color_out := BitKilnBuffer.create(out_size.x * grid.x, out_size.y * grid.y)
 	var normal_in := context.get_layer(BitKilnContext.NORMAL)
 	var normal_out := BitKilnBuffer.create(color_out.width, color_out.height) if normal_in != null else null
+	var sprites: Array[BitKilnBuffer] = []
+	var normals: Array[BitKilnBuffer] = []
+	var bounds: Array[Rect2] = []
 	for f in in_count:
-		var sprite := _extract(context.color, context, f)
-		var normals := _extract(normal_in, context, f) if normal_in != null else null
-		var bounds := _content_bounds(sprite)
-		var big: BitKilnBuffer = null # the sprite at 8×, made once if a frame needs it
+		sprites.append(_extract(context.color, context, f))
+		normals.append(_extract(normal_in, context, f) if normal_in != null else null)
+		bounds.append(_content_bounds(sprites[f]))
+	if timeline:
+		# One pivot for the whole animation, so it doesn't jump as the frames change.
+		var shared := _union_bounds(sprites)
+		bounds.fill(shared)
+	var bigs := {} # source frame -> the sprite at 8×, made once if a frame needs it
+	for r in rows:
 		for i in count:
 			var t := float(i) / count if loop else float(i) / maxi(count - 1, 1)
-			var index := f * count + i
+			var index := r * count + i
 			var cell := Vector2i(index % grid.x, index / grid.x) * out_size
 			# Afterimages first, behind the sprite.
 			for motion in effects:
@@ -136,22 +170,22 @@ func _apply(context: BitKilnContext) -> void:
 				if u < 0.0:
 					continue
 				for g in range(motion.ghosts, 0, -1):
+					var j := i - g * motion.ghost_spacing
 					var tg := t - float(g * motion.ghost_spacing) / count
 					if loop:
+						j = posmod(j, count)
 						tg = fposmod(tg, 1.0)
 					elif tg < 0.0:
 						continue
-					var state := _state(tg, bounds)
-					if state.needs_big and big == null:
-						big = _scale8(sprite)
-					var ghost := _render(sprite, big, null, state, source_size, out_size, null)
+					var gf := (j * in_count / count) if timeline else r
+					var state := _state(tg, bounds[gf])
+					var ghost := _render(sprites[gf], _big(bigs, sprites, gf, state), null, state, source_size, out_size, null)
 					var opacity := clampf(motion.amount * motion.envelope(u) * (1.0 - float(g - 1) / motion.ghosts), 0.0, 1.0)
 					_composite(color_out, cell, ghost, opacity, motion.color)
-			var current := _state(t, bounds)
-			if current.needs_big and big == null:
-				big = _scale8(sprite)
-			var normal_frame := BitKilnBuffer.create(out_size.x, out_size.y) if normals != null else null
-			var frame := _render(sprite, big, normals, current, source_size, out_size, normal_frame)
+			var f := (i * in_count / count) if timeline else r
+			var current := _state(t, bounds[f])
+			var normal_frame := BitKilnBuffer.create(out_size.x, out_size.y) if normals[f] != null else null
+			var frame := _render(sprites[f], _big(bigs, sprites, f, current), normals[f], current, source_size, out_size, normal_frame)
 			_composite(color_out, cell, frame, 1.0, Color(0, 0, 0, 0))
 			if normal_frame != null:
 				_blit(normal_out, cell, normal_frame)
@@ -161,6 +195,16 @@ func _apply(context: BitKilnContext) -> void:
 		context.layers[BitKilnContext.NORMAL] = normal_out
 	context.frames = grid
 	context.reset_source_mapping()
+	context.meta["fps"] = playback_fps(earlier)
+
+
+## Source frame [param f] at 8× when [param state] needs it (rotation, skewing), made once.
+static func _big(cache: Dictionary, sprites: Array[BitKilnBuffer], f: int, state: Dictionary) -> BitKilnBuffer:
+	if not state.needs_big:
+		return null
+	if not cache.has(f):
+		cache[f] = _scale8(sprites[f])
+	return cache[f]
 
 
 ## Where the sprite is and how it looks at animation time [param t].
@@ -368,6 +412,19 @@ static func _content_bounds(sprite: BitKilnBuffer) -> Rect2:
 	if hi.x < 0:
 		return Rect2(Vector2.ZERO, Vector2(sprite.width, sprite.height))
 	return Rect2(Vector2(lo), Vector2(hi - lo + Vector2i.ONE))
+
+
+## The bounds of everything drawn in any of [param sprites].
+static func _union_bounds(sprites: Array[BitKilnBuffer]) -> Rect2:
+	var all := BitKilnBuffer.create(sprites[0].width, sprites[0].height)
+	var ap := all.pixels
+	for sprite in sprites:
+		var sp := sprite.pixels
+		for i in sp.size():
+			if sp[i] != 0:
+				ap[i] = 1
+	all.pixels = ap
+	return _content_bounds(all)
 
 
 static func _scale8(sprite: BitKilnBuffer) -> BitKilnBuffer:

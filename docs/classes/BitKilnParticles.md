@@ -6,7 +6,7 @@ Simulates particles and draws them across the frames, as pixel art: fire, smoke,
 
 ## Description
 
-How many frames: set how long the effect lasts ([duration](#property-duration)) and the speed it plays at ([fps](#property-fps)), and [frame_count](#property-frame_count) at Auto works out the count. Starting from one frame (a blank canvas, or a sprite the particles go over), the op makes that many frames in a row, so the result plays at real speed. Over a sheet that already has several frames (after a [BitKilnAnimate](BitKilnAnimate.md), say), it draws on those instead, spreading [duration](#property-duration) over them.  The same settings always give the same sheet: every particle's randomness comes from [seed](#property-seed) and its own number. With [loop](#property-loop), emission repeats exactly every [duration](#property-duration) and the simulation is warmed up first, so the last frame flows into the first. Particles snap to whole pixels, fade by dropping pixels in an ordered pattern, and can snap to a palette.
+How many frames: set how long the effect lasts ([duration](#property-duration)) and the speed it plays at ([fps](#property-fps)), and [frame_count](#property-frame_count) at Auto works out the count. Starting from one frame (a blank canvas, or a sprite the particles go over), the op makes that many frames in a row, so the result plays at real speed. After an op that already animated the image (a [BitKilnAnimate](BitKilnAnimate.md), say), it draws on that animation's frames at its speed instead. Over a source sheet that already has several frames, it draws on those, spreading [duration](#property-duration) over them.  The same settings always give the same sheet: every particle's randomness comes from [seed](#property-seed) and its own number. With [loop](#property-loop), emission repeats exactly every [duration](#property-duration) and the simulation is warmed up first, so the last frame flows into the first. Particles snap to whole pixels, fade by dropping pixels in an ordered pattern, and can snap to a palette.
 
 ## Properties
 
@@ -54,7 +54,8 @@ How many frames: set how long the effect lasts ([duration](#property-duration)) 
 | float | [get_fps](#method-get_fps)() |
 | int | [get_frame_count](#method-get_frame_count)() |
 | Dictionary | [make_preset](#method-make_preset)(preset: String) static |
-| PackedStringArray | [preset_names](#method-preset_names)() static |
+| float | [playback_fps](#method-playback_fps)(earlier: float) |
+| [PackedStringArray](https://docs.godotengine.org/en/stable/classes/class_packedstringarray.html) | [preset_names](#method-preset_names)() static |
 | Array[Array] | [simulate](#method-simulate)(count: int, extra: int = 0, span: float = -1.0) |
 
 ## Enumerations
@@ -174,7 +175,7 @@ Frames per second the effect is made for. Sprite Frames and GIF outputs play at 
 <a id="property-frame_count"></a>
 ### int frame_count = `0`
 
-Frames to make. 0 = Auto: [duration](#property-duration) × [fps](#property-fps). Ignored over a sheet that already has several frames.
+Frames to make. 0 = Auto: [duration](#property-duration) × [fps](#property-fps). Ignored over a sheet that already has several frames, or an animation made by an earlier op.
 
 ---
 
@@ -344,8 +345,13 @@ A ready-made effect, as property values to set on the op.
 
 ---
 
+<a id="method-playback_fps"></a>
+### float playback_fps(earlier: float)
+
+---
+
 <a id="method-preset_names"></a>
-### PackedStringArray preset_names() static
+### [PackedStringArray](https://docs.godotengine.org/en/stable/classes/class_packedstringarray.html) preset_names() static
 
 Names of the ready-made effects, for [make_preset()](#method-make_preset). They're tuned for 32×32 frames.
 

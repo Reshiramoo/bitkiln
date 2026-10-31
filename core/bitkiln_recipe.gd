@@ -94,18 +94,25 @@ func get_naming_path(index := 0) -> String:
 
 
 ## Frames per second [param output] plays at: its own [member BitKilnOutput.fps] when set,
-## otherwise the fps of the last enabled op that animates ([method BitKilnOp.get_fps]) and
-## that the output uses, otherwise 10. Without an output, the speed the ops are made for.
+## otherwise the speed the enabled ops it uses give the image (see
+## [method BitKilnOp.playback_fps]: the op that first animates it sets the speed, and ops
+## that animate it further keep it), otherwise 10. Without an output, the speed the ops give.
 func get_fps(output: BitKilnOutput = null) -> float:
 	if output != null and output.fps > 0.0:
 		return output.fps
-	var result := DEFAULT_FPS
-	for op in ops:
+	var result := fps_before(ops.size(), output)
+	return result if result > 0.0 else DEFAULT_FPS
+
+
+## The speed the enabled ops before op number [param index] give the image (that
+## [param output] uses, when given); 0 when none of them animates it.
+func fps_before(index: int, output: BitKilnOutput = null) -> float:
+	var result := 0.0
+	for i in mini(index, ops.size()):
+		var op := ops[i]
 		if op == null or not op.enabled or (output != null and not output.uses_op(op)):
 			continue
-		var op_fps := op.get_fps()
-		if op_fps > 0.0:
-			result = op_fps
+		result = op.playback_fps(result)
 	return result
 
 

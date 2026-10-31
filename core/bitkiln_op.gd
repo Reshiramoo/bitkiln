@@ -74,6 +74,14 @@ func get_fps() -> float:
 	return 0.0
 
 
+## Frames per second the image plays at after this op, given the speed [param earlier] ops
+## gave it (0 when none of them animated it): [method get_fps] for ops that animate, the
+## earlier speed for the rest.
+func playback_fps(earlier: float) -> float:
+	var own := get_fps()
+	return own if own > 0.0 else earlier
+
+
 ## 1 for each pixel of [param context]'s layers inside the mask, 0 outside; empty when
 ## there's no usable mask.
 func mask_pixels(context: BitKilnContext) -> PackedByteArray:
