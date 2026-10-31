@@ -78,6 +78,7 @@ canvas. Each section shows the ops behind its pictures.
 - [Class reference](#class-reference)
 - [Troubleshooting](#troubleshooting)
 - [Limitations](#limitations)
+- [Support](#support)
 - [License](#license)
 
 ## Requirements
@@ -731,6 +732,12 @@ returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPale
 - **Bake Material** needs a renderer, and has only been tested with the Compatibility (OpenGL)
   renderer so far.
 - **Members starting with `_`** are internal and may change between versions.
+
+## Support
+
+Found a bug or have an idea? [Open an issue](https://github.com/Reshiramoo/bitkiln/issues) and mention
+your Godot and BitKiln versions. For anything else, email
+[support@reshiramoo.com](mailto:support@reshiramoo.com).
 
 ## License
 
