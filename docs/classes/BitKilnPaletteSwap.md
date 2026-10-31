@@ -6,7 +6,7 @@ Replaces colors, and makes one variant per palette: shiny forms, team colors, en
 
 ## Description
 
-A palette is either two rows, as used by Pocket's `sprite_fx` palette swap (row 0 = colors to find, row 1 = their replacements), or a single row of replacements for the colors in [base_palette](#property-base_palette), such as a Lospec palette. With more than one palette, each variant is named after its palette's file and baked to its own file. Ops after this one run on every variant, so an outline or glow after a swap follows the new colors.
+A palette is either two rows, the layout many palette swap shaders use (row 0 = colors to find, row 1 = their replacements), or a single row of replacements for the colors in [base_palette](#property-base_palette), such as a Lospec palette. With more than one palette, each variant is named after its palette's file and baked to its own file. Ops after this one run on every variant, so an outline or glow after a swap follows the new colors.
 
 ## Properties
 

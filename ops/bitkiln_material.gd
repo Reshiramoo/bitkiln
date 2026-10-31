@@ -3,7 +3,7 @@
 class_name BitKilnMaterial
 extends BitKilnOp
 ## Renders the image through a CanvasItem material and keeps the result: design an
-## effect live with a shader (Pocket's [code]sprite_fx[/code], a palette shader, your
+## effect live with a shader (a hit flash, a dissolve, a palette shader, your
 ## own), then freeze it into the PNG so the game doesn't run the shader. The material
 ## itself isn't changed.
 ##
@@ -15,8 +15,8 @@ extends BitKilnOp
 ## The material to render with: a ShaderMaterial (canvas_item shader) or a
 ## CanvasItemMaterial.
 @export var material: Material
-## Set the shader's [code]sheet_frames[/code] uniform (Pocket's sprite_fx convention) to the
-## frame grid, so per-frame effects stay inside their frames.
+## Set the shader's [code]sheet_frames[/code] uniform, if it has one ([code]vec2[/code]: columns
+## and rows), to the frame grid, so per-frame effects stay inside their frames.
 @export var set_sheet_frames := true
 ## Shader parameters for this bake only, by name: they override the material's values
 ## without changing it. For example [code]{"flash_amount": 1.0}[/code].

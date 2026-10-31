@@ -3,7 +3,6 @@
 class_name BitKilnOutline
 extends BitKilnOp
 ## An outline around the sprite, or along the inside of its edge, in whole pixels.
-## Shapes match the pixel-perfect outline of Pocket's [code]sprite_fx[/code] shader.
 ##
 ## Selective coloring ("sel-out") colors each outline pixel with a darker version of the
 ## sprite color next to it instead of one flat color, a common pixel-art technique that

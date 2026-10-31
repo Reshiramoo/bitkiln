@@ -2,7 +2,7 @@
 
 **Inherits:** [BitKilnOp](BitKilnOp.md)
 
-Draws an animated effect across the frames: sparkles, impact bursts, smoke puffs, slashes, pulsing orbs and shockwave rings. Use it on a recipe without a source (a blank canvas), and play the result with a Sprite Frames output, a `PocketSpriteVfx` or an AnimatedSprite2D.
+Draws an animated effect across the frames: sparkles, impact bursts, smoke puffs, slashes, pulsing orbs and shockwave rings. Use it on a recipe without a source (a blank canvas), and play the result with a Sprite Frames output on an AnimatedSprite2D.
 
 ## Description
 

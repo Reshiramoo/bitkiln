@@ -2,7 +2,7 @@
 
 **Inherits:** [RefCounted](https://docs.godotengine.org/en/stable/classes/class_refcounted.html)
 
-Reads palettes from textures: a row of colors per palette, as in Pocket's palette swap images and Lospec palettes imported by BitKiln (`.hex`, `.gpl`).
+Reads palettes from textures: a row of colors per palette, as in palette swap images and Lospec palettes imported by BitKiln (`.hex`, `.gpl`).
 
 ## Methods
 

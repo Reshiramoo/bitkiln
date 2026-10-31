@@ -2,7 +2,7 @@
 
 **Inherits:** [BitKilnOp](BitKilnOp.md)
 
-An outline around the sprite, or along the inside of its edge, in whole pixels. Shapes match the pixel-perfect outline of Pocket's `sprite_fx` shader.
+An outline around the sprite, or along the inside of its edge, in whole pixels.
 
 ## Description
 

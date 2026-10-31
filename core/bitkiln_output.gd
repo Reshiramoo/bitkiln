@@ -10,7 +10,7 @@ enum Kind {
 	COLOR, ## The color layer, as a PNG.
 	NORMAL, ## The normal map from a [BitKilnNormalMap], as a PNG.
 	CANVAS_TEXTURE, ## A [CanvasTexture] [code].tres[/code] using the recipe's Color and Normal outputs, ready for a Sprite2D with 2D lights.
-	PALETTE, ## Every color of the result, darkest to brightest, as a one-row PNG: usable as a palette by [BitKilnPaletteSwap], [BitKilnQuantize] or Pocket's shaders.
+	PALETTE, ## Every color of the result, darkest to brightest, as a one-row PNG: usable as a palette by [BitKilnPaletteSwap], [BitKilnQuantize] or palette shaders.
 	SPRITE_FRAMES, ## A [SpriteFrames] [code].tres[/code] for an AnimatedSprite2D, cutting the recipe's Color output into its frames.
 	TILE_SET, ## A [TileSet] [code].tres[/code] with the recipe's Color output as an atlas, one tile per non-empty frame; after a [BitKilnAutotile], with a terrain set up for painting.
 	GIF, ## The frames as an animated GIF, for sharing outside the game.

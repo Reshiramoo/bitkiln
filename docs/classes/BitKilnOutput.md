@@ -37,7 +37,7 @@ A file a [BitKilnRecipe](BitKilnRecipe.md) writes when baked: a layer saved as a
 - **COLOR** = `0`: The color layer, as a PNG.
 - **NORMAL** = `1`: The normal map from a [BitKilnNormalMap](BitKilnNormalMap.md), as a PNG.
 - **CANVAS_TEXTURE** = `2`: A [CanvasTexture](https://docs.godotengine.org/en/stable/classes/class_canvastexture.html) `.tres` using the recipe's Color and Normal outputs, ready for a Sprite2D with 2D lights.
-- **PALETTE** = `3`: Every color of the result, darkest to brightest, as a one-row PNG: usable as a palette by [BitKilnPaletteSwap](BitKilnPaletteSwap.md), [BitKilnQuantize](BitKilnQuantize.md) or Pocket's shaders.
+- **PALETTE** = `3`: Every color of the result, darkest to brightest, as a one-row PNG: usable as a palette by [BitKilnPaletteSwap](BitKilnPaletteSwap.md), [BitKilnQuantize](BitKilnQuantize.md) or palette shaders.
 - **SPRITE_FRAMES** = `4`: A [SpriteFrames](https://docs.godotengine.org/en/stable/classes/class_spriteframes.html) `.tres` for an AnimatedSprite2D, cutting the recipe's Color output into its frames.
 - **TILE_SET** = `5`: A [TileSet](https://docs.godotengine.org/en/stable/classes/class_tileset.html) `.tres` with the recipe's Color output as an atlas, one tile per non-empty frame; after a [BitKilnAutotile](BitKilnAutotile.md), with a terrain set up for painting.
 - **GIF** = `6`: The frames as an animated GIF, for sharing outside the game.

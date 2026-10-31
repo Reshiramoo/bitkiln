@@ -5,7 +5,7 @@ extends BitKilnOp
 ## Replaces colors, and makes one variant per palette: shiny forms, team colors, enemy
 ## tiers from one sprite.
 ##
-## A palette is either two rows, as used by Pocket's [code]sprite_fx[/code] palette swap
+## A palette is either two rows, the layout many palette swap shaders use
 ## (row 0 = colors to find, row 1 = their replacements), or a single row of replacements
 ## for the colors in [member base_palette], such as a Lospec palette. With more than one
 ## palette, each variant is named after its palette's file and baked to its own file.

@@ -1,8 +1,8 @@
 @tool
 class_name BitKilnPalette
 extends RefCounted
-## Reads palettes from textures: a row of colors per palette, as in Pocket's palette
-## swap images and Lospec palettes imported by BitKiln ([code].hex[/code], [code].gpl[/code]).
+## Reads palettes from textures: a row of colors per palette, as in palette swap
+## images and Lospec palettes imported by BitKiln ([code].hex[/code], [code].gpl[/code]).
 
 
 ## The colors in row [param row] of [param texture], left to right, transparent pixels

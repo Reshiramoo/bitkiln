@@ -4,8 +4,7 @@ class_name BitKilnFxSheet
 extends BitKilnOp
 ## Draws an animated effect across the frames: sparkles, impact bursts, smoke puffs,
 ## slashes, pulsing orbs and shockwave rings. Use it on a recipe without a source (a blank
-## canvas), and play the result with a Sprite Frames output, a [code]PocketSpriteVfx[/code]
-## or an AnimatedSprite2D.
+## canvas), and play the result with a Sprite Frames output on an AnimatedSprite2D.
 ##
 ## How many frames: set how long the effect lasts ([member duration]) and the speed it plays
 ## at ([member fps]), and [member frame_count] at Auto works out the count. Starting from
