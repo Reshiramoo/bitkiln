@@ -1,3 +1,5 @@
+<img src=".github/icon.png" alt="" width="128" align="right">
+
 # BitKiln
 
 Pixel art plugin for Godot 4.6+: modify, bake and create pixel sprites inside the editor.
@@ -89,13 +91,12 @@ canvas. Each section shows the ops behind its pictures.
 
 ## Installation
 
-1. Install **BitKiln** from the **AssetLib** tab at the top of the editor, which puts it in
-   `addons/bitkiln`. Or clone this repository into your project's `addons` folder as `bitkiln`:
-   ```bash
-   git clone https://github.com/Reshiramoo/BitKiln.git addons/bitkiln
-   ```
-   (or add it as a submodule: `git submodule add https://github.com/Reshiramoo/BitKiln.git addons/bitkiln`).
-   The folder must be named `bitkiln`.
+1. Get the plugin into your project's `addons/bitkiln` folder, either way:
+   - **AssetLib:** in the editor's **AssetLib** tab, search for **BitKiln**, then **Download** and
+     **Install**.
+   - **By hand:** download this repository (**Code → Download ZIP**, or a release) and copy its
+     `addons/bitkiln` folder into your project's `addons` folder. With git, clone it anywhere and copy
+     or symlink that folder.
 2. **Project → Project Settings → Plugins** → enable **BitKiln**. A **BitKiln** tab appears in
    the bottom panel.
 
@@ -715,7 +716,7 @@ returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPale
 | Outlines, shadows or glows are cut off | They have nowhere to go: put a [BitKilnPad](docs/classes/BitKilnPad.md) before them. On sheets, ops stop at frame edges on purpose. |
 | A recipe didn't bake again after I changed the source | `auto_bake` is off, or Godot hasn't reimported the file yet (it does when the editor window regains focus). Click **Bake** to force it. |
 | "the color PNG isn't imported yet; bake again" | A Sprite Frames, Canvas Texture or Tile Set output needs its PNG imported first. Bake once more. |
-| Every recipe shows as changed after cloning the project | Bake records live in `.godot/editor`, which isn't committed. **Bake All Stale** once, or run `tools/bake_all.gd` in CI. |
+| Every recipe shows as changed after cloning the project | Bake records live in `.godot/editor`, which isn't committed. **Bake All Stale** once, or run `addons/bitkiln/tools/bake_all.gd` in CI. |
 | Bake Material does nothing in a build script | It needs a renderer, so `--headless` runs skip it with a warning. Bake it in the editor. |
 | The preview is slow | Large sheets with 4× scalers or RotSprite take a while. Turn those ops off with their **Enabled** switch while tuning the others. |
 
@@ -734,4 +735,4 @@ returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPale
 ## License
 
 BitKiln is released under the [MIT License](LICENSE). The MMPX scaler is a port of MIT-licensed code; see
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[THIRD_PARTY_NOTICES.md](addons/bitkiln/THIRD_PARTY_NOTICES.md).
