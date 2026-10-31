@@ -49,6 +49,7 @@ don't need the plugin, and the original art is never touched.
   - [Shading](#shading)
   - [Glow and blur](#glow-and-blur)
   - [Sprite sheets](#sprite-sheets)
+  - [Overlays](#overlays)
   - [Baking a material](#baking-a-material)
 - [Animation](#animation)
 - [Frame counts and speed](#frame-counts-and-speed)
@@ -189,6 +190,7 @@ no longer writes are listed in the log for you to delete.
 | [BitKilnReduce](docs/classes/BitKilnReduce.md) | Reduces the image to at most N colors picked from itself (median cut). Add a Palette output to save them. |
 | [BitKilnAdjust](docs/classes/BitKilnAdjust.md) | Hue, saturation, brightness, contrast and tint. |
 | [BitKilnGradientMap](docs/classes/BitKilnGradientMap.md) | Recolors by brightness through a Gradient: greyscale art into any color scheme. |
+| [BitKilnOverlay](docs/classes/BitKilnOverlay.md) | Draws a texture on top of the image or behind it, placed, tiled or stretched, with blend modes (see [Overlays](#overlays)). |
 | [BitKilnMaterial](docs/classes/BitKilnMaterial.md) | Renders the image through a CanvasItem material (see [Baking a material](#baking-a-material)). |
 | **Animation** | |
 | [BitKilnAnimate](docs/classes/BitKilnAnimate.md) | Turns each frame into an animation from juice effects (see [Animation](#animation)). |
@@ -310,6 +312,27 @@ with an ordered pattern. Follow either with a Quantize to bring the colors into 
 - A **Sprite Frames** output writes a `SpriteFrames` resource cut from the Color output. With
   **Per Row**, each row of frames becomes an animation, named by **Animation Names** (or
   `row_0`, `row_1`…). Rebaking rebuilds the same file, so scenes using it keep working.
+
+### Overlays
+
+[BitKilnOverlay](docs/classes/BitKilnOverlay.md) draws a **Texture** on every frame: accessories
+and stickers, damage and dirt, a cloth or scale pattern, shading painted by hand, a background.
+It never scales the texture smoothly, so its pixels stay crisp.
+
+- **Placement**: **Place** puts it once per frame at **Align** (0–1 across the frame: (0.5, 1) is
+  bottom middle) plus **Offset** pixels. **Tile** repeats it across the frame, for patterns.
+  **Stretch** scales it to the frame, nearest neighbour.
+- **Blend**: **Normal** covers the image; turn on **Clip To Sprite** to draw only over the
+  sprite's own pixels. **Behind** goes under the sprite. **Multiply**, **Screen**, **Overlay** and
+  **Add** darken, lighten or texture the sprite's pixels and never draw outside them.
+- **Opacity** below 1 draws whole pixels in an ordered pattern (**Dither**), so no new colors
+  appear; turn Dither off to mix colors instead.
+- **Texture Frames** cuts the texture into a grid: frame 1 of the image gets the texture's frame
+  1, frame 2 its frame 2, and so on, starting over when the texture runs out. A hat drawn as a
+  matching strip follows a walk cycle this way. **Frame** limits the overlay to one frame.
+- **Layer** draws on the normal map instead, to add surface detail by hand after a Normal Map op.
+
+Like other ops, it takes a [mask](#masks), and the recipe bakes again when the texture changes.
 
 ### Baking a material
 
@@ -590,7 +613,7 @@ returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPale
 | [BitKilnOp](docs/classes/BitKilnOp.md) | Base class of ops. |
 | [BitKilnPad](docs/classes/BitKilnPad.md), [BitKilnTrim](docs/classes/BitKilnTrim.md), [BitKilnExtrude](docs/classes/BitKilnExtrude.md), [BitKilnTransform](docs/classes/BitKilnTransform.md), [BitKilnRotate](docs/classes/BitKilnRotate.md), [BitKilnScale](docs/classes/BitKilnScale.md), [BitKilnRepack](docs/classes/BitKilnRepack.md) | Shape ops. |
 | [BitKilnOutline](docs/classes/BitKilnOutline.md), [BitKilnShadow](docs/classes/BitKilnShadow.md), [BitKilnGlow](docs/classes/BitKilnGlow.md), [BitKilnBlur](docs/classes/BitKilnBlur.md), [BitKilnNormalMap](docs/classes/BitKilnNormalMap.md), [BitKilnShade](docs/classes/BitKilnShade.md) | Edge and light ops. |
-| [BitKilnPaletteSwap](docs/classes/BitKilnPaletteSwap.md), [BitKilnQuantize](docs/classes/BitKilnQuantize.md), [BitKilnReduce](docs/classes/BitKilnReduce.md), [BitKilnAdjust](docs/classes/BitKilnAdjust.md), [BitKilnGradientMap](docs/classes/BitKilnGradientMap.md), [BitKilnMaterial](docs/classes/BitKilnMaterial.md) | Color ops. |
+| [BitKilnPaletteSwap](docs/classes/BitKilnPaletteSwap.md), [BitKilnQuantize](docs/classes/BitKilnQuantize.md), [BitKilnReduce](docs/classes/BitKilnReduce.md), [BitKilnAdjust](docs/classes/BitKilnAdjust.md), [BitKilnGradientMap](docs/classes/BitKilnGradientMap.md), [BitKilnOverlay](docs/classes/BitKilnOverlay.md), [BitKilnMaterial](docs/classes/BitKilnMaterial.md) | Color ops. |
 | [BitKilnAnimate](docs/classes/BitKilnAnimate.md), [BitKilnMotion](docs/classes/BitKilnMotion.md) | Animation. |
 | [BitKilnParticles](docs/classes/BitKilnParticles.md) | Particles. |
 | [BitKilnShape](docs/classes/BitKilnShape.md), [BitKilnFxSheet](docs/classes/BitKilnFxSheet.md), [BitKilnRandomSprite](docs/classes/BitKilnRandomSprite.md), [BitKilnNoise](docs/classes/BitKilnNoise.md), [BitKilnRamp](docs/classes/BitKilnRamp.md) | Generators. |
