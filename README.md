@@ -67,10 +67,12 @@ don't need the plugin, and the original art is never touched.
   - [Writing your own op](#writing-your-own-op)
 - [Class reference](#class-reference)
 - [Limitations](#limitations)
+- [License](#license)
 
 ## Installation
 
-1. Clone this repository into your project's `addons` folder as `bitkiln`:
+1. Install **BitKiln** from the **AssetLib** tab at the top of the editor, which puts it in
+   `addons/bitkiln`. Or clone this repository into your project's `addons` folder as `bitkiln`:
    ```bash
    git clone https://github.com/Reshiramoo/BitKiln.git addons/bitkiln
    ```
@@ -653,3 +655,8 @@ returns a context per variant (see [BitKilnPaletteSwap](docs/classes/BitKilnPale
 - **Bake Material** needs a renderer, and has only been tested with the Compatibility (OpenGL)
   renderer so far.
 - **Members starting with `_`** are internal and may change between versions.
+
+## License
+
+BitKiln is released under the [MIT License](LICENSE). The MMPX scaler is a port of MIT-licensed code; see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
